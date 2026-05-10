@@ -1,0 +1,2199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NETFOR//07 — Network Forensics</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;600;700&family=Russo+One&family=Barlow+Condensed:wght@300;400;600;700&display=swap');
+
+:root {
+  --abyss:   #020810;
+  --deep1:   #050e1f;
+  --deep2:   #081428;
+  --deep3:   #0c1d38;
+  --deep4:   #102448;
+
+  --sonar:   #00c8ff;
+  --sonar2:  #0098cc;
+  --sonar3:  #006699;
+  --sonar4:  #003d5c;
+  --ping:    #00ffcc;
+  --ping2:   #00cc99;
+  --warn:    #ff8c1a;
+  --warn2:   #cc5500;
+  --red:     #ff2244;
+  --red2:    #cc0022;
+  --silver:  #b0cce0;
+  --dim:     #2a4a6a;
+  --muted:   #0f2035;
+  --rule:    #0a1a2a;
+
+  --mono: 'Azeret Mono', monospace;
+  --display: 'Russo One', sans-serif;
+  --body: 'Barlow Condensed', sans-serif;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+
+body {
+  background: var(--abyss);
+  color: var(--silver);
+  font-family: var(--body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── DEPTH CONTOURS ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    repeating-radial-gradient(ellipse 120% 80% at 50% -20%,
+      transparent 0px, transparent 120px,
+      rgba(0,200,255,.025) 120px, rgba(0,200,255,.025) 121px,
+      transparent 121px, transparent 260px,
+      rgba(0,200,255,.018) 260px, rgba(0,200,255,.018) 261px,
+      transparent 261px, transparent 420px,
+      rgba(0,200,255,.012) 420px, rgba(0,200,255,.012) 421px
+    );
+  pointer-events: none; z-index: 0;
+}
+
+/* Sonar ping animation */
+@keyframes sonar-ring {
+  0%   { transform: translate(-50%,-50%) scale(0); opacity: .6; }
+  100% { transform: translate(-50%,-50%) scale(4); opacity: 0; }
+}
+
+.sonar-origin {
+  position: fixed;
+  top: 30%; left: 75%;
+  width: 2px; height: 2px;
+  pointer-events: none; z-index: 0;
+}
+.sonar-ring {
+  position: absolute; top: 50%; left: 50%;
+  width: 200px; height: 200px;
+  border: 1px solid rgba(0,200,255,.3);
+  border-radius: 50%;
+  animation: sonar-ring 6s ease-out infinite;
+}
+.sonar-ring:nth-child(2) { animation-delay: 2s; }
+.sonar-ring:nth-child(3) { animation-delay: 4s; }
+
+.z1 { position: relative; z-index: 1; }
+
+/* ── NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 200;
+  display: flex; align-items: stretch;
+  background: rgba(2,8,16,.96);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0,200,255,.15);
+  overflow-x: auto; scrollbar-width: none;
+  box-shadow: 0 4px 30px rgba(0,0,0,.5);
+}
+nav::-webkit-scrollbar { display: none; }
+
+.nav-brand {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 24px;
+  border-right: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+.nav-sonar-dot {
+  width: 10px; height: 10px;
+  background: var(--sonar);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(0,200,255,.6);
+  animation: sonar-pulse 2.5s ease-out infinite;
+}
+@keyframes sonar-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0,200,255,.6); }
+  70%  { box-shadow: 0 0 0 10px rgba(0,200,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,200,255,0); }
+}
+.nav-title {
+  font-family: var(--display);
+  font-size: .85rem;
+  letter-spacing: 3px;
+  color: var(--sonar);
+  white-space: nowrap;
+}
+
+.ntabs { display: flex; }
+.ntab {
+  font-family: var(--mono);
+  font-size: .55rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 0 16px;
+  cursor: pointer;
+  color: var(--dim);
+  background: none; border: none;
+  border-right: 1px solid var(--rule);
+  white-space: nowrap;
+  transition: all .2s;
+}
+.ntab:hover { color: var(--sonar); background: rgba(0,200,255,.04); }
+.ntab.active { color: var(--abyss); background: var(--sonar2); font-weight: 700; }
+
+/* ── HERO ── */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  min-height: 220px;
+  border-bottom: 1px solid rgba(0,200,255,.1);
+}
+@media(max-width:760px){ .hero{grid-template-columns:1fr} }
+
+.hero-main {
+  padding: 52px 52px 44px;
+  border-right: 1px solid rgba(0,200,255,.08);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Grid overlay on hero */
+.hero-main::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,200,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: .55rem;
+  letter-spacing: 5px;
+  color: var(--sonar3);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 10px;
+}
+.hero-eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 30px; height: 1px;
+  background: var(--sonar3);
+}
+
+.hero-h1 {
+  font-family: var(--display);
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  line-height: .9;
+  letter-spacing: 1px;
+  color: var(--silver);
+  margin-bottom: 20px;
+  position: relative;
+}
+.hero-h1 .hl {
+  color: var(--sonar);
+  text-shadow: 0 0 30px rgba(0,200,255,.4);
+}
+
+.hero-desc {
+  font-family: var(--body);
+  font-size: 1rem;
+  font-weight: 300;
+  color: var(--dim);
+  line-height: 1.7;
+  max-width: 500px;
+  margin-bottom: 24px;
+  letter-spacing: .3px;
+}
+
+.hero-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hchip {
+  font-family: var(--mono);
+  font-size: .52rem;
+  letter-spacing: 1.5px;
+  padding: 4px 10px;
+  border: 1px solid var(--sonar4);
+  color: var(--sonar3);
+  text-transform: uppercase;
+}
+
+.hero-panel {
+  background: var(--deep1);
+  display: flex; flex-direction: column;
+}
+.hp-row {
+  flex: 1;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--rule);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.hp-row:last-child { border-bottom: none; }
+.hp-label {
+  font-family: var(--mono);
+  font-size: .48rem;
+  letter-spacing: 3px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.hp-val {
+  font-family: var(--display);
+  font-size: 1.3rem;
+  letter-spacing: 1px;
+  color: var(--ping);
+  text-shadow: 0 0 15px rgba(0,255,204,.3);
+}
+.hp-sub {
+  font-family: var(--mono);
+  font-size: .58rem;
+  color: var(--sonar3);
+  margin-top: 2px;
+}
+
+/* ── MODULE / WRAPPER ── */
+.module{display:none}
+.module.active{display:block}
+.wrapper{max-width:1200px;margin:0 auto;padding:44px 52px 80px}
+@media(max-width:640px){.wrapper{padding:24px 16px 60px}}
+
+/* ── SECTION HEADER ── */
+.sh {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 20px;
+  margin-bottom: 32px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(0,200,255,.08);
+}
+.sh-num {
+  font-family: var(--display);
+  font-size: 2.8rem;
+  color: var(--muted);
+  line-height: 1;
+  padding-top: 4px;
+  text-align: right;
+}
+.sh-eyebrow {
+  font-family: var(--mono);
+  font-size: .5rem;
+  letter-spacing: 4px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.sh-title {
+  font-family: var(--display);
+  font-size: 1.7rem;
+  letter-spacing: .5px;
+  color: var(--silver);
+  margin-bottom: 6px;
+  line-height: 1;
+}
+.sh-title .hl { color: var(--sonar); }
+.sh-desc {
+  font-family: var(--body);
+  font-size: .92rem;
+  color: var(--dim);
+  font-weight: 300;
+  line-height: 1.65;
+  max-width: 700px;
+}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.gasym{display:grid;grid-template-columns:1.5fr 1fr;gap:12px}
+@media(max-width:860px){.g2,.g3,.gasym{grid-template-columns:1fr}}
+
+/* ── CARDS ── */
+.card {
+  background: var(--deep1);
+  border: 1px solid rgba(0,200,255,.08);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .25s, box-shadow .25s;
+}
+.card:hover {
+  border-color: rgba(0,200,255,.2);
+  box-shadow: 0 0 20px rgba(0,200,255,.06);
+}
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: var(--card-top, transparent);
+  transition: background .3s;
+}
+.card:hover::after { background: var(--card-hover, transparent); }
+
+.cs  { --card-hover: rgba(0,200,255,.5); }
+.cp  { --card-hover: rgba(0,255,204,.4); }
+.cw  { --card-hover: rgba(255,140,26,.4); }
+.cr  { --card-hover: rgba(255,34,68,.4); }
+
+.clabel {
+  font-family: var(--mono);
+  font-size: .5rem;
+  letter-spacing: 3px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.ctitle {
+  font-family: var(--display);
+  font-size: .95rem;
+  letter-spacing: .5px;
+  color: var(--silver);
+  margin-bottom: 10px;
+  line-height: 1.1;
+}
+.ctitle.sonar { color: var(--sonar); }
+.ctitle.ping  { color: var(--ping); }
+.ctitle.warn  { color: var(--warn); }
+.ctitle.red   { color: var(--red); }
+
+.cbody {
+  font-family: var(--body);
+  font-size: .88rem;
+  color: var(--dim);
+  line-height: 1.7;
+  font-weight: 300;
+}
+.cbody strong { color: var(--silver); font-weight: 600; }
+.cbody code {
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--ping);
+  background: rgba(0,255,204,.06);
+  padding: 1px 5px;
+  border: 1px solid rgba(0,255,204,.12);
+}
+
+/* ── CODE BLOCKS ── */
+.cb {
+  background: #010508;
+  border: 1px solid rgba(0,200,255,.07);
+  border-left: 2px solid var(--cb-accent, rgba(0,200,255,.3));
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: .67rem;
+  font-weight: 400;
+  line-height: 1.95;
+  overflow-x: auto;
+  margin: 10px 0;
+  color: #1a3a5a;
+  position: relative;
+}
+.cb .tag {
+  position: absolute; top: 5px; right: 8px;
+  font-size: .48rem; letter-spacing: 2px;
+  color: rgba(0,200,255,.25); text-transform: uppercase;
+}
+.K  { color: #00c8ff; font-weight: 700; }
+.F  { color: #00ffcc; }
+.S  { color: #88ddff; }
+.N  { color: #ff8c1a; }
+.C  { color: #0f2840; font-style: italic; }
+.V  { color: #66aadd; }
+.H  { color: #aaccdd; }
+.R  { color: #ff2244; }
+.G  { color: #00ffcc; }
+.Y  { color: #ff8c1a; }
+.W  { color: #b0cce0; }
+.P  { color: #cc88ff; }
+.DIM{ color: #0f2840; }
+
+/* ── ALERT ── */
+.alert {
+  border: 1px solid;
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-family: var(--body);
+  font-size: .88rem;
+  line-height: 1.6;
+  font-weight: 300;
+}
+.alert strong { font-weight: 700; }
+.a-warn { border-color: rgba(255,140,26,.4); color: var(--warn); background: rgba(255,140,26,.04); }
+.a-info { border-color: rgba(0,200,255,.3); color: var(--sonar2); background: rgba(0,200,255,.04); }
+.a-ok   { border-color: rgba(0,255,204,.3); color: var(--ping2); background: rgba(0,255,204,.04); }
+.a-err  { border-color: rgba(255,34,68,.35); color: var(--red); background: rgba(255,34,68,.04); }
+
+/* ── TABLE ── */
+.dtable { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.dtable th {
+  font-family: var(--mono);
+  font-size: .52rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  text-align: left;
+  background: var(--deep3);
+  color: var(--sonar);
+  border: 1px solid rgba(0,200,255,.1);
+}
+.dtable td {
+  font-family: var(--body);
+  font-size: .85rem;
+  font-weight: 300;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.dtable tr:nth-child(even) td { background: rgba(0,200,255,.02); }
+.dtable tr:hover td { background: rgba(0,200,255,.05); color: var(--silver); }
+.dtable td strong { color: var(--silver); font-weight: 600; }
+.dtable td code { font-family: var(--mono); font-size: .72rem; color: var(--ping); }
+.tc-r { color: var(--red)!important; font-family: var(--mono); font-size: .72rem; font-weight: 700; }
+.tc-y { color: var(--warn)!important; font-family: var(--mono); font-size: .72rem; font-weight: 700; }
+.tc-g { color: var(--ping2)!important; font-family: var(--mono); font-size: .72rem; font-weight: 700; }
+.tc-s { color: var(--sonar2)!important; font-family: var(--mono); font-size: .72rem; font-weight: 700; }
+
+/* ── DIVIDER ── */
+.divline { height: 1px; background: linear-gradient(90deg,transparent,rgba(0,200,255,.15),transparent); margin: 24px 0; }
+
+/* ── BADGES ── */
+.badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.badge {
+  font-family: var(--mono);
+  font-size: .5rem;
+  letter-spacing: 1.5px;
+  padding: 2px 8px;
+  border: 1px solid;
+  text-transform: uppercase;
+}
+.bs { color: var(--sonar2); border-color: rgba(0,200,255,.35); background: rgba(0,200,255,.05); }
+.bp { color: var(--ping2); border-color: rgba(0,255,204,.3); background: rgba(0,255,204,.05); }
+.bw { color: var(--warn); border-color: rgba(255,140,26,.3); background: rgba(255,140,26,.05); }
+.br { color: var(--red); border-color: rgba(255,34,68,.3); background: rgba(255,34,68,.05); }
+
+/* ── IN-PAGE TABS ── */
+.itabs {
+  display: flex; border-bottom: 1px solid rgba(0,200,255,.08);
+  margin-bottom: 0; overflow-x: auto; scrollbar-width: none;
+}
+.itabs::-webkit-scrollbar { display: none; }
+.itab {
+  font-family: var(--mono);
+  font-size: .54rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: var(--dim);
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  transition: all .18s;
+}
+.itab:hover { color: var(--sonar); }
+.itab.active { color: var(--sonar); border-bottom-color: var(--sonar); }
+.ipanel { display: none; padding-top: 20px; }
+.ipanel.active { display: block; }
+
+/* ── PACKET ANATOMY DISPLAY ── */
+.packet-layers {
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 14px 0;
+}
+.pkt-layer {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  border: 1px solid;
+  transition: all .2s;
+  cursor: default;
+}
+.pkt-layer:hover { transform: translateX(4px); }
+.pl-1 { border-color: rgba(255,34,68,.3); background: rgba(255,34,68,.04); }
+.pl-2 { border-color: rgba(255,140,26,.3); background: rgba(255,140,26,.04); margin: 0 8px; }
+.pl-3 { border-color: rgba(0,200,255,.2); background: rgba(0,200,255,.04); margin: 0 16px; }
+.pl-4 { border-color: rgba(0,255,204,.2); background: rgba(0,255,204,.04); margin: 0 24px; }
+.pl-5 { border-color: rgba(176,204,224,.15); background: rgba(176,204,224,.04); margin: 0 32px; }
+.pkt-num {
+  font-family: var(--mono);
+  font-size: .55rem;
+  letter-spacing: 2px;
+  min-width: 50px;
+}
+.pl-1 .pkt-num { color: var(--red); }
+.pl-2 .pkt-num { color: var(--warn); }
+.pl-3 .pkt-num { color: var(--sonar2); }
+.pl-4 .pkt-num { color: var(--ping2); }
+.pl-5 .pkt-num { color: var(--dim); }
+.pkt-name {
+  font-family: var(--display);
+  font-size: .85rem;
+  letter-spacing: 1px;
+  min-width: 100px;
+}
+.pkt-fields {
+  font-family: var(--mono);
+  font-size: .62rem;
+  color: var(--dim);
+  flex: 1;
+}
+.pkt-forensic {
+  font-family: var(--mono);
+  font-size: .58rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+.pl-1 .pkt-forensic { color: var(--red); }
+.pl-2 .pkt-forensic { color: var(--warn); }
+.pl-3 .pkt-forensic { color: var(--sonar3); }
+.pl-4 .pkt-forensic { color: var(--ping2); }
+
+/* ── WIRESHARK FILTER BAR ── */
+.filter-bar {
+  background: #010508;
+  border: 1px solid rgba(0,200,255,.1);
+  border-radius: 0;
+  padding: 0;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.fb-label {
+  background: rgba(0,200,255,.06);
+  border-bottom: 1px solid rgba(0,200,255,.1);
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: .52rem;
+  letter-spacing: 2px;
+  color: var(--sonar3);
+  text-transform: uppercase;
+}
+.fb-filter {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(0,200,255,.05);
+  font-family: var(--mono);
+  font-size: .68rem;
+  color: var(--sonar);
+  transition: background .15s;
+}
+.fb-filter:last-child { border-bottom: none; }
+.fb-filter:hover { background: rgba(0,200,255,.03); }
+.fb-desc { font-family: var(--body); font-size: .78rem; color: var(--dim); flex: 1; font-weight: 300; margin-left: 8px; }
+
+/* ── QUIZ ── */
+.qcard {
+  background: var(--deep1);
+  border: 1px solid rgba(0,200,255,.08);
+  padding: 20px;
+  margin-bottom: 10px;
+  transition: border-color .2s;
+}
+.qcard:hover { border-color: rgba(0,200,255,.15); }
+.qnum {
+  font-family: var(--mono);
+  font-size: .5rem;
+  letter-spacing: 3px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.qtext {
+  font-family: var(--body);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--silver);
+  margin-bottom: 14px;
+  line-height: 1.5;
+  letter-spacing: .2px;
+}
+.qopts { display: flex; flex-direction: column; gap: 5px; }
+.qopt {
+  font-family: var(--mono);
+  font-size: .67rem;
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  background: var(--abyss);
+  color: var(--dim);
+  text-align: left;
+  cursor: pointer;
+  transition: all .15s;
+  line-height: 1.45;
+}
+.qopt:hover:not(.locked) { border-color: rgba(0,200,255,.3); color: var(--sonar); }
+.qopt.correct { border-color: rgba(0,255,204,.5); background: rgba(0,255,204,.07); color: var(--ping); }
+.qopt.wrong   { border-color: rgba(255,34,68,.4); background: rgba(255,34,68,.05); color: var(--red); }
+.qexplain {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--deep1);
+  border-left: 2px solid var(--sonar3);
+  font-family: var(--body);
+  font-size: .85rem;
+  color: var(--dim);
+  line-height: 1.7;
+  display: none;
+  font-weight: 300;
+}
+.qexplain.show { display: block; }
+.qexplain strong { color: var(--sonar); font-weight: 700; }
+.qexplain code { font-family: var(--mono); font-size: .73rem; color: var(--ping); }
+
+.score-panel {
+  background: var(--deep1);
+  border: 1px solid rgba(0,200,255,.2);
+  padding: 28px;
+  text-align: center;
+  margin-top: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.score-panel::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(0,200,255,.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+.score-big {
+  font-family: var(--display);
+  font-size: 3.5rem;
+  color: var(--sonar);
+  line-height: 1;
+  margin-bottom: 6px;
+  text-shadow: 0 0 30px rgba(0,200,255,.4);
+}
+.score-sub {
+  font-family: var(--mono);
+  font-size: .55rem;
+  letter-spacing: 3px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.score-bar { height: 2px; background: var(--muted); max-width: 280px; margin: 0 auto 16px; }
+.score-fill { height: 100%; transition: width .6s; }
+.reset-btn {
+  font-family: var(--mono);
+  font-size: .57rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 8px 20px;
+  background: none;
+  color: var(--sonar2);
+  border: 1px solid rgba(0,200,255,.3);
+  cursor: pointer;
+  transition: all .2s;
+}
+.reset-btn:hover { background: rgba(0,200,255,.08); color: var(--sonar); }
+</style>
+</head>
+<body>
+
+<div class="sonar-origin">
+  <div class="sonar-ring"></div>
+  <div class="sonar-ring"></div>
+  <div class="sonar-ring"></div>
+</div>
+
+<!-- NAV -->
+<nav class="z1">
+  <div class="nav-brand">
+    <div class="nav-sonar-dot"></div>
+    <div class="nav-title">NETFOR // 07</div>
+  </div>
+  <div class="ntabs">
+    <button class="ntab active" onclick="sw('overview',this)">Overview</button>
+    <button class="ntab" onclick="sw('pcap',this)">PCAP Analysis</button>
+    <button class="ntab" onclick="sw('zeek',this)">Zeek</button>
+    <button class="ntab" onclick="sw('suricata',this)">Suricata</button>
+    <button class="ntab" onclick="sw('dns',this)">DNS Forensics</button>
+    <button class="ntab" onclick="sw('tls',this)">TLS / JA3</button>
+    <button class="ntab" onclick="sw('c2',this)">C2 Detection</button>
+    <button class="ntab" onclick="sw('lateral',this)">Lateral Movement</button>
+    <button class="ntab" onclick="sw('quiz',this)">Exam</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero z1">
+  <div class="hero-main">
+    <div class="hero-eyebrow">Module 07 — Network Forensics & Traffic Analysis</div>
+    <h1 class="hero-h1">SEE EVERY<br><span class="hl">PACKET.</span><br>HEAR EVERY<br><span class="hl">SIGNAL.</span></h1>
+    <p class="hero-desc">PCAP dissection, Zeek log correlation, Suricata rule authoring, DNS anomaly detection, TLS fingerprinting with JA3, C2 beacon analysis, and lateral movement detection from raw network evidence.</p>
+    <div class="hero-chips">
+      <span class="hchip">Wireshark</span><span class="hchip">Zeek</span><span class="hchip">Suricata</span>
+      <span class="hchip">JA3/JA3S</span><span class="hchip">DNS Forensics</span><span class="hchip">NetFlow</span>
+    </div>
+  </div>
+  <div class="hero-panel z1">
+    <div class="hp-row">
+      <div class="hp-label">Focus Layer</div>
+      <div class="hp-val">NETWORK</div>
+      <div class="hp-sub">OSI Layers 3–7</div>
+    </div>
+    <div class="hp-row">
+      <div class="hp-label">Primary Tools</div>
+      <div class="hp-val">ZEEK</div>
+      <div class="hp-sub">+ Wireshark + Suricata</div>
+    </div>
+    <div class="hp-row">
+      <div class="hp-label">ATT&CK Coverage</div>
+      <div class="hp-val">TA0011</div>
+      <div class="hp-sub">C2 + Exfiltration</div>
+    </div>
+    <div class="hp-row">
+      <div class="hp-label">Key Technique</div>
+      <div class="hp-val">JA3</div>
+      <div class="hp-sub">TLS fingerprinting</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ OVERVIEW ══════════════ -->
+<div class="module active z1" id="mod-overview">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">07</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// The Network Evidence Layer //</div>
+      <div class="sh-title">Why <span class="hl">Network Forensics</span></div>
+      <div class="sh-desc">Every attack traverses the network — even fileless, memory-only malware must communicate. Network evidence is often the only artifact that survives host cleanup, log deletion, or VM reversion. Mastering it closes the gap that host-based forensics leaves open.</div>
+    </div>
+  </div>
+
+  <!-- OSI forensic value by layer -->
+  <div class="card cs" style="margin-bottom:14px">
+    <div class="clabel">Protocol Stack — Forensic Value</div>
+    <div class="ctitle sonar">PACKET LAYERS & WHAT EACH REVEALS</div>
+    <div class="cbody" style="margin-bottom:12px">Each OSI layer carries distinct forensic signals. A complete network investigation touches all of them.</div>
+    <div class="packet-layers">
+      <div class="pkt-layer pl-1">
+        <span class="pkt-num">L7 APP</span>
+        <span class="pkt-name" style="color:var(--red)">APPLICATION</span>
+        <span class="pkt-fields">HTTP headers · DNS queries · TLS SNI · SMTP envelopes · SMB paths</span>
+        <span class="pkt-forensic">C2 URLs · phishing indicators · exfil data</span>
+      </div>
+      <div class="pkt-layer pl-2">
+        <span class="pkt-num">L6/5</span>
+        <span class="pkt-name" style="color:var(--warn)">TLS/SESSION</span>
+        <span class="pkt-fields">TLS version · cipher suite · SNI · certificate details · JA3 fingerprint</span>
+        <span class="pkt-forensic">Malware TLS profiles · self-signed certs</span>
+      </div>
+      <div class="pkt-layer pl-3">
+        <span class="pkt-num">L4 TRANS</span>
+        <span class="pkt-name" style="color:var(--sonar)">TCP/UDP</span>
+        <span class="pkt-fields">Source/dest ports · TCP flags · sequence numbers · connection state</span>
+        <span class="pkt-forensic">Port scanning · unusual port use · SYN floods</span>
+      </div>
+      <div class="pkt-layer pl-4">
+        <span class="pkt-num">L3 NET</span>
+        <span class="pkt-name" style="color:var(--ping2)">IP</span>
+        <span class="pkt-fields">Source/dest IPs · TTL · protocol · fragmentation · ICMP type</span>
+        <span class="pkt-forensic">C2 IPs · lateral movement paths · tunneling</span>
+      </div>
+      <div class="pkt-layer pl-5">
+        <span class="pkt-num">L2 LINK</span>
+        <span class="pkt-name" style="color:var(--dim)">ETHERNET</span>
+        <span class="pkt-fields">MAC addresses · VLAN tags · ARP</span>
+        <span class="pkt-forensic">ARP poisoning · VLAN hopping</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:14px">
+    <div class="card cs">
+      <div class="clabel">Tool 01</div>
+      <div class="ctitle sonar">Wireshark</div>
+      <div class="cbody">Full packet capture and deep protocol dissection. GUI-based. Best for interactive investigation of specific conversations. Filter language is powerful and expressive.</div>
+      <div class="badges"><span class="badge bs">PCAP</span><span class="badge bs">Interactive</span><span class="badge bs">Protocol Decode</span></div>
+    </div>
+    <div class="card cp">
+      <div class="clabel">Tool 02</div>
+      <div class="ctitle ping">Zeek (Bro)</div>
+      <div class="cbody">Network security monitor. Produces structured logs (conn.log, dns.log, http.log, ssl.log, files.log) ideal for SIEM ingestion and large-scale correlation. Scriptable.</div>
+      <div class="badges"><span class="badge bp">Log Generation</span><span class="badge bp">Scripting</span><span class="badge bp">SIEM Feed</span></div>
+    </div>
+    <div class="card cw">
+      <div class="clabel">Tool 03</div>
+      <div class="ctitle warn">Suricata</div>
+      <div class="cbody">IDS/IPS with Snort-compatible rule format. Real-time alerting against PCAP or live traffic. Rich rule language with protocol keywords, byte matching, and flow tracking.</div>
+      <div class="badges"><span class="badge bw">IDS/IPS</span><span class="badge bw">Real-Time</span><span class="badge bw">Rules</span></div>
+    </div>
+  </div>
+
+  <!-- Network forensics workflow -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="clabel">Investigation Workflow</div>
+    <div class="ctitle">NETWORK FORENSIC INVESTIGATION PIPELINE</div>
+    <div class="cb">
+<span class="C">################################################################################</span>
+<span class="C"># NETWORK FORENSICS WORKFLOW — Applied to any PCAP or live capture</span>
+<span class="C">################################################################################</span>
+
+<span class="Y">STEP 1: OVERVIEW — What are we looking at?</span>
+<span class="K">capinfos</span> capture.pcap              <span class="C"># duration, packet count, protocols</span>
+<span class="K">tshark</span> -r capture.pcap -q -z io,phs <span class="C"># protocol hierarchy statistics</span>
+<span class="K">tshark</span> -r capture.pcap -q -z conv,tcp <span class="C"># TCP conversation summary</span>
+
+<span class="Y">STEP 2: IDENTIFY HOSTS</span>
+<span class="K">tshark</span> -r capture.pcap -T fields \
+    -e ip.src -e ip.dst \
+    -q -z ip_hosts,tree | head -30
+<span class="K">zeek</span> -r capture.pcap             <span class="C"># generate all Zeek logs</span>
+<span class="K">cat</span> conn.log | <span class="K">zeek-cut</span> id.orig_h id.resp_h | <span class="K">sort | uniq -c | sort -rn</span>
+
+<span class="Y">STEP 3: HUNT ANOMALIES</span>
+<span class="C"># DNS: unusual domains, NXDOMAIN storms, long labels</span>
+<span class="K">cat</span> dns.log | <span class="K">zeek-cut</span> query answers | <span class="K">grep</span> -v ".arpa"
+
+<span class="C"># HTTP: suspicious User-Agents, POST to unusual hosts</span>
+<span class="K">cat</span> http.log | <span class="K">zeek-cut</span> host uri user_agent method | <span class="K">grep</span> POST
+
+<span class="C"># TLS: self-signed certs, unusual JA3, non-standard ports</span>
+<span class="K">cat</span> ssl.log | <span class="K">zeek-cut</span> server_name ja3 ja3s validation_status
+
+<span class="Y">STEP 4: EXTRACT & ANALYZE ARTIFACTS</span>
+<span class="C"># Extract transferred files</span>
+<span class="K">zeek</span> -r capture.pcap /opt/zeek/share/zeek/policy/frameworks/files/extract-all-files.zeek
+<span class="K">file</span> extract_files/*    <span class="C"># identify each extracted file</span>
+<span class="K">sha256sum</span> extract_files/* <span class="C"># hash for VT lookup</span>
+
+<span class="Y">STEP 5: RUN SURICATA RULES</span>
+<span class="K">suricata</span> -r capture.pcap -l ./suricata_output/ \
+    --runmode single -S emerging-threats.rules</div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ PCAP ANALYSIS ══════════════ -->
+<div class="module z1" id="mod-pcap">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">01</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Packet Capture Analysis //</div>
+      <div class="sh-title">Wireshark & <span class="hl">tshark Mastery</span></div>
+      <div class="sh-desc">Deep packet inspection, display filter syntax, protocol reconstruction, and artifact extraction from PCAP files. tshark for command-line scripting; Wireshark for interactive investigation.</div>
+    </div>
+  </div>
+
+  <!-- Wireshark display filters -->
+  <div class="card cs" style="margin-bottom:14px">
+    <div class="clabel">Wireshark Display Filter Reference</div>
+    <div class="ctitle sonar">ESSENTIAL FORENSIC FILTERS</div>
+    <div class="cbody" style="margin-bottom:10px">These display filters surface the most forensically relevant traffic. Apply in Wireshark's filter bar or via <code>tshark -Y</code>.</div>
+
+    <div class="filter-bar">
+      <div class="fb-label">// C2 & BEACONING</div>
+      <div class="fb-filter"><span>http.request.method == "POST"</span><span class="fb-desc">Data exfiltration or C2 check-in</span></div>
+      <div class="fb-filter"><span>tcp.flags.syn == 1 && tcp.flags.ack == 0</span><span class="fb-desc">All SYN packets — port scan / new connections</span></div>
+      <div class="fb-filter"><span>!(ip.dst == 10.0.0.0/8 || ip.dst == 192.168.0.0/16)</span><span class="fb-desc">All external traffic — exclude RFC1918</span></div>
+      <div class="fb-filter"><span>frame.time_delta &lt; 0.001 && tcp</span><span class="fb-desc">Rapid-fire connections — scanning or DDoS</span></div>
+    </div>
+
+    <div class="filter-bar" style="margin-top:8px">
+      <div class="fb-label">// DNS</div>
+      <div class="fb-filter"><span>dns.flags.rcode == 3</span><span class="fb-desc">NXDOMAIN responses — DGA detection, typosquatting</span></div>
+      <div class="fb-filter"><span>dns.qry.type == 16</span><span class="fb-desc">TXT record queries — DNS tunneling</span></div>
+      <div class="fb-filter"><span>dns.qry.name.len &gt; 50</span><span class="fb-desc">Unusually long hostnames — encoded data in subdomain</span></div>
+      <div class="fb-filter"><span>dns && !dns.flags.response</span><span class="fb-desc">DNS queries only (not responses)</span></div>
+    </div>
+
+    <div class="filter-bar" style="margin-top:8px">
+      <div class="fb-label">// TLS / ENCRYPTED</div>
+      <div class="fb-filter"><span>tls.handshake.type == 1</span><span class="fb-desc">TLS ClientHello — capture JA3 fingerprint here</span></div>
+      <div class="fb-filter"><span>tls.handshake.certificate</span><span class="fb-desc">Certificate exchanges — inspect validity, issuer</span></div>
+      <div class="fb-filter"><span>ssl.alert_message.level == 2</span><span class="fb-desc">TLS fatal alerts — cert rejection, handshake failure</span></div>
+    </div>
+
+    <div class="filter-bar" style="margin-top:8px">
+      <div class="fb-label">// LATERAL MOVEMENT</div>
+      <div class="fb-filter"><span>smb || smb2</span><span class="fb-desc">SMB traffic — file sharing, PsExec, ransomware spread</span></div>
+      <div class="fb-filter"><span>tcp.port == 445 && ip.src != ip.dst</span><span class="fb-desc">SMB between hosts — lateral movement indicator</span></div>
+      <div class="fb-filter"><span>kerberos</span><span class="fb-desc">Kerberos authentication — TGT/TGS requests, AS-REP</span></div>
+      <div class="fb-filter"><span>ntlmssp</span><span class="fb-desc">NTLM auth — Pass-the-Hash indicator</span></div>
+      <div class="fb-filter"><span>tcp.port == 3389</span><span class="fb-desc">RDP — remote desktop lateral movement</span></div>
+    </div>
+  </div>
+
+  <!-- tshark scripting -->
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card cs">
+      <div class="clabel">tshark — Command Line Power</div>
+      <div class="ctitle sonar">TSHARK EXTRACTION SCRIPTS</div>
+      <div class="cb">
+<span class="tag">BASH</span>
+<span class="C"># Extract all HTTP objects (files downloaded over HTTP)</span>
+<span class="K">tshark</span> -r cap.pcap --export-objects http,./extracted/
+
+<span class="C"># Extract all DNS queries + responses</span>
+<span class="K">tshark</span> -r cap.pcap -Y dns -T fields \
+    -e frame.time -e dns.qry.name \
+    -e dns.resp.addr -e dns.flags.rcode \
+    -E header=y -E separator=, > dns_full.csv
+
+<span class="C"># Extract TLS SNI values (encrypted traffic server names)</span>
+<span class="K">tshark</span> -r cap.pcap -Y tls.handshake.type==1 \
+    -T fields -e ip.src -e ip.dst \
+    -e tls.handshake.extensions_server_name
+
+<span class="C"># Unique external IPs contacted</span>
+<span class="K">tshark</span> -r cap.pcap -T fields -e ip.dst \
+    | <span class="K">grep</span> -vE '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)' \
+    | <span class="K">sort -u</span>
+
+<span class="C"># HTTP User-Agent strings</span>
+<span class="K">tshark</span> -r cap.pcap -Y http.request \
+    -T fields -e http.host -e http.user_agent \
+    -E separator='|' | <span class="K">sort -u</span>
+
+<span class="C"># Top talkers by byte volume</span>
+<span class="K">tshark</span> -r cap.pcap -q -z conv,ip \
+    | <span class="K">sort</span> -k5 -rn | head -20</div>
+    </div>
+    <div class="card cs">
+      <div class="clabel">Python — Scapy / PyShark</div>
+      <div class="ctitle sonar">PROGRAMMATIC PCAP ANALYSIS</div>
+      <div class="cb">
+<span class="tag">PYTHON</span>
+<span class="K">import</span> pyshark
+<span class="K">from</span> collections <span class="K">import</span> Counter, defaultdict
+<span class="K">import</span> math, ipaddress
+
+<span class="K">def</span> <span class="F">analyze_pcap</span>(pcap_path: str):
+    cap = pyshark.FileCapture(pcap_path,
+        display_filter=<span class="S">'dns || http || tls'</span>)
+
+    dns_queries  = Counter()
+    http_hosts   = Counter()
+    tls_sni      = Counter()
+    nxdomains    = []
+
+    <span class="K">for</span> pkt <span class="K">in</span> cap:
+        <span class="K">try</span>:
+            <span class="C"># DNS analysis</span>
+            <span class="K">if</span> hasattr(pkt, <span class="S">'dns'</span>):
+                q = pkt.dns.qry_name
+                dns_queries[q] += <span class="N">1</span>
+                <span class="K">if</span> hasattr(pkt.dns, <span class="S">'flags_rcode'</span>) \
+                   <span class="K">and</span> pkt.dns.flags_rcode == <span class="S">'3'</span>:
+                    nxdomains.append(q)
+
+            <span class="C"># HTTP analysis</span>
+            <span class="K">if</span> hasattr(pkt, <span class="S">'http'</span>):
+                <span class="K">if</span> hasattr(pkt.http, <span class="S">'host'</span>):
+                    http_hosts[pkt.http.host] += <span class="N">1</span>
+
+            <span class="C"># TLS SNI analysis</span>
+            <span class="K">if</span> hasattr(pkt, <span class="S">'tls'</span>):
+                sni = getattr(pkt.tls,
+                    <span class="S">'handshake_extensions_server_name'</span>, None)
+                <span class="K">if</span> sni:
+                    tls_sni[sni] += <span class="N">1</span>
+        <span class="K">except</span>: <span class="K">pass</span>
+
+    <span class="F">print</span>(f<span class="S">"\nNXDOMAIN count: {len(nxdomains)}"</span>)
+    <span class="F">print</span>(f<span class="S">"Unique DNS queries: {len(dns_queries)}"</span>)
+    <span class="F">print</span>(<span class="S">"\nTop HTTP hosts:"</span>)
+    <span class="K">for</span> h, c <span class="K">in</span> http_hosts.most_common(<span class="N">10</span>):
+        <span class="F">print</span>(f<span class="S">"  {c:5d}  {h}"</span>)
+    <span class="F">print</span>(<span class="S">"\nTLS SNI (external):"</span>)
+    <span class="K">for</span> s, c <span class="K">in</span> tls_sni.most_common(<span class="N">10</span>):
+        <span class="F">print</span>(f<span class="S">"  {c:5d}  {s}"</span>)
+
+analyze_pcap(<span class="S">"capture.pcap"</span>)</div>
+    </div>
+  </div>
+
+  <!-- File extraction -->
+  <div class="card">
+    <div class="clabel">Artifact Extraction</div>
+    <div class="ctitle">EXTRACTING FILES & CREDENTIALS FROM PCAP</div>
+    <div class="cb">
+<span class="C"># Export HTTP objects in Wireshark: File → Export Objects → HTTP</span>
+<span class="C"># Command line equivalent:</span>
+<span class="K">tshark</span> -r cap.pcap --export-objects http,./http_objects/
+<span class="K">tshark</span> -r cap.pcap --export-objects smb,./smb_objects/
+<span class="K">tshark</span> -r cap.pcap --export-objects tftp,./tftp_objects/
+
+<span class="C"># Hash all extracted files for VT lookup</span>
+<span class="K">find</span> ./http_objects/ -type f -exec sha256sum {} \;
+
+<span class="C"># Extract NTLM hashes from SMB/HTTP traffic (for analysis)</span>
+<span class="C"># Useful during forensics to identify credential theft attempts</span>
+<span class="K">python3</span> -m PCredz -f cap.pcap
+<span class="C"># Extracts: NTLM NTHash, Kerberos tickets, HTTP Basic, FTP creds</span>
+
+<span class="C"># Follow TCP stream for specific conversation</span>
+<span class="C"># Wireshark: right-click packet → Follow → TCP Stream</span>
+<span class="C"># tshark equivalent (stream index from -z conv,tcp output):</span>
+<span class="K">tshark</span> -r cap.pcap -Y "tcp.stream == 42" \
+    -T fields -e data.data | <span class="K">xxd</span>
+
+<span class="C"># Reassemble a transferred file from TCP stream</span>
+<span class="K">tcpflow</span> -r cap.pcap -C -g       <span class="C"># reassembles all TCP flows</span>
+<span class="K">networkx</span>                         <span class="C"># or use Wireshark → Export → Objects</span></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ ZEEK ══════════════ -->
+<div class="module z1" id="mod-zeek">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">02</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Network Security Monitoring //</div>
+      <div class="sh-title">Zeek <span class="hl">Log Analysis</span></div>
+      <div class="sh-desc">Zeek converts raw PCAPs into structured, analyst-friendly logs. Each protocol gets its own log file. Correlation across logs surfaces attack chains invisible in raw packets.</div>
+    </div>
+  </div>
+
+  <!-- Zeek log types -->
+  <div class="card cp" style="margin-bottom:14px">
+    <div class="clabel">Zeek Log Reference</div>
+    <div class="ctitle ping">ZEEK LOG FILES — COMPLETE REFERENCE</div>
+    <div class="cbody" style="margin-bottom:10px">Every Zeek analysis session produces these logs. Learn which log to consult for each investigation question.</div>
+    <table class="dtable">
+      <tr><th>LOG FILE</th><th>KEY FIELDS</th><th>FORENSIC QUESTIONS ANSWERED</th></tr>
+      <tr>
+        <td><strong>conn.log</strong></td>
+        <td><code>uid, orig_h, orig_p, resp_h, resp_p, proto, service, duration, orig_bytes, resp_bytes, conn_state</code></td>
+        <td>Who talked to whom? For how long? How much data? (Primary beaconing analysis)</td>
+      </tr>
+      <tr>
+        <td><strong>dns.log</strong></td>
+        <td><code>query, qtype_name, answers, rcode_name, TTL, rejected</code></td>
+        <td>What domains were queried? NXDOMAIN storms? DGA? DNS tunneling?</td>
+      </tr>
+      <tr>
+        <td><strong>http.log</strong></td>
+        <td><code>host, uri, method, user_agent, status_code, request_body_len, response_body_len, referrer</code></td>
+        <td>C2 HTTP beacons? File downloads? Malicious User-Agents? Data exfil?</td>
+      </tr>
+      <tr>
+        <td><strong>ssl.log</strong></td>
+        <td><code>server_name, version, cipher, ja3, ja3s, cert_chain_fuids, validation_status</code></td>
+        <td>Self-signed certs? Unusual TLS versions? JA3 fingerprint matches known malware?</td>
+      </tr>
+      <tr>
+        <td><strong>files.log</strong></td>
+        <td><code>fuid, tx_hosts, rx_hosts, mime_type, filename, md5, sha256, extracted</code></td>
+        <td>What files were transferred? Are their hashes malicious? What MIME types?</td>
+      </tr>
+      <tr>
+        <td><strong>smtp.log</strong></td>
+        <td><code>from, to, subject, x_originating_ip, attachment_info</code></td>
+        <td>Phishing email metadata, spoofed senders, malicious attachments</td>
+      </tr>
+      <tr>
+        <td><strong>smb_files.log</strong></td>
+        <td><code>action, path, name, size, times</code></td>
+        <td>Files accessed/written over SMB — ransomware file activity, lateral tools</td>
+      </tr>
+      <tr>
+        <td><strong>smb_mapping.log</strong></td>
+        <td><code>path, resource_type, share_type</code></td>
+        <td>Network share access — lateral movement, data staging</td>
+      </tr>
+      <tr>
+        <td><strong>weird.log</strong></td>
+        <td><code>peer, name, addl</code></td>
+        <td>Protocol anomalies Zeek flagged — often high-value alerts</td>
+      </tr>
+      <tr>
+        <td><strong>notice.log</strong></td>
+        <td><code>note, msg, src, dst, sub</code></td>
+        <td>Zeek-generated alerts from loaded policy scripts</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Zeek analysis commands -->
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card cp">
+      <div class="clabel">Zeek CLI — zeek-cut</div>
+      <div class="ctitle ping">ZEEK LOG ANALYSIS COMMANDS</div>
+      <div class="cb">
+<span class="tag">BASH</span>
+<span class="C"># Run Zeek against a PCAP</span>
+<span class="K">zeek</span> -r capture.pcap local
+
+<span class="C"># zeek-cut: select specific fields (like awk but aware of Zeek headers)</span>
+
+<span class="C"># Top DNS queries (excluding reverse lookups)</span>
+<span class="K">cat</span> dns.log | <span class="K">zeek-cut</span> query rcode_name \
+    | <span class="K">grep</span> -v ".arpa" \
+    | <span class="K">sort | uniq -c | sort -rn</span> | head -20
+
+<span class="C"># NXDOMAIN storm detection</span>
+<span class="K">cat</span> dns.log | <span class="K">zeek-cut</span> query rcode_name \
+    | <span class="K">awk</span> '$2=="NXDOMAIN"' \
+    | <span class="K">cut -f1</span> | <span class="K">sort | uniq -c | sort -rn</span>
+
+<span class="C"># Suspicious HTTP connections (unusual UA + POST)</span>
+<span class="K">cat</span> http.log | <span class="K">zeek-cut</span> host uri method user_agent \
+    | <span class="K">awk</span> '$3=="POST"' \
+    | <span class="K">grep</span> -v "Mozilla\|Chrome\|Safari"
+
+<span class="C"># Self-signed or invalid TLS certificates</span>
+<span class="K">cat</span> ssl.log | <span class="K">zeek-cut</span> server_name ja3 ja3s validation_status \
+    | <span class="K">grep</span> -v "ok"
+
+<span class="C"># Large outbound transfers (potential exfil)</span>
+<span class="K">cat</span> conn.log | <span class="K">zeek-cut</span> orig_h resp_h orig_bytes resp_bytes service \
+    | <span class="K">awk</span> '$4>1000000' \
+    | <span class="K">sort -t$'\t' -k4 -rn</span> | head -20
+
+<span class="C"># SMB connections between internal hosts (lateral movement)</span>
+<span class="K">cat</span> conn.log | <span class="K">zeek-cut</span> orig_h resp_h resp_p service \
+    | <span class="K">awk</span> '$4=="445" && /^192\.168/'</div>
+    </div>
+
+    <div class="card cp">
+      <div class="clabel">Zeek Scripting</div>
+      <div class="ctitle ping">CUSTOM ZEEK DETECTION SCRIPT</div>
+      <div class="cbody" style="margin-bottom:10px">Write Zeek scripts to detect custom behavioral patterns. This script detects beaconing by tracking connection intervals per host.</div>
+      <div class="cb">
+<span class="tag">ZEEK SCRIPT</span>
+<span class="C">## beacon_detect.zeek</span>
+<span class="C">## Detect C2 beaconing: regular intervals to same external IP</span>
+
+<span class="K">module</span> BeaconDetect;
+
+<span class="K">export</span> {
+    <span class="K">const</span> beacon_threshold = <span class="N">8</span> &amp;redef;   <span class="C"># min connections</span>
+    <span class="K">const</span> jitter_tolerance = <span class="N">0.2</span> &amp;redef; <span class="C"># 20% jitter allowed</span>
+}
+
+<span class="C"># Track connection times per src->dst pair</span>
+<span class="K">global</span> conn_times: table[addr, addr] <span class="K">of</span> vector of time;
+
+<span class="K">event</span> <span class="F">connection_established</span>(c: connection) {
+    <span class="K">local</span> orig = c$id$orig_h;
+    <span class="K">local</span> resp = c$id$resp_h;
+
+    <span class="C"># Only track external destinations</span>
+    <span class="K">if</span> ( resp in Site::private_address_space ) <span class="K">return</span>;
+
+    <span class="K">if</span> ( [orig, resp] !<span class="K">in</span> conn_times )
+        conn_times[orig, resp] = vector();
+    conn_times[orig, resp] += network_time();
+}
+
+<span class="K">event</span> <span class="F">zeek_done</span>() {
+    <span class="K">for</span> ( [src, dst] <span class="K">in</span> conn_times ) {
+        <span class="K">local</span> times = conn_times[src, dst];
+        <span class="K">if</span> ( |times| &lt; beacon_threshold ) <span class="K">next</span>;
+
+        <span class="C"># Calculate inter-arrival time deltas</span>
+        <span class="K">local</span> deltas: vector of double;
+        <span class="K">for</span> ( i <span class="K">in</span> times ) {
+            <span class="K">if</span> ( i == 0 ) <span class="K">next</span>;
+            deltas += interval_to_double(times[i] - times[i-<span class="N">1</span>]);
+        }
+        <span class="C"># Low coefficient of variation = regular = beacon</span>
+        <span class="K">local</span> mean   = mean(deltas);
+        <span class="K">local</span> stddev = stddev(deltas);
+        <span class="K">local</span> cv = stddev / mean;  <span class="C"># coefficient of variation</span>
+        <span class="K">if</span> ( cv &lt; jitter_tolerance ) {
+            <span class="F">NOTICE</span>([$note=Weird::Activity,
+                $msg=fmt(<span class="S">"BEACON: %s→%s interval=%.1fs cv=%.3f count=%d"</span>,
+                    src, dst, mean, cv, |times|),
+                $src=src, $dst=dst]);
+        }
+    }
+}</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ SURICATA ══════════════ -->
+<div class="module z1" id="mod-suricata">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">03</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Network Intrusion Detection //</div>
+      <div class="sh-title">Suricata <span class="hl">Rule Authoring</span></div>
+      <div class="sh-desc">Writing high-fidelity Suricata rules for network-level detection. Rule anatomy, protocol keywords, flow tracking, byte matching, and performance tuning.</div>
+    </div>
+  </div>
+
+  <!-- Rule anatomy -->
+  <div class="card cw" style="margin-bottom:14px">
+    <div class="clabel">Suricata Rule — Complete Anatomy</div>
+    <div class="ctitle warn">RULE STRUCTURE ANNOTATED</div>
+    <div class="cb" style="--cb-accent:var(--warn)">
+<span class="tag">SURICATA</span>
+<span class="C"># Suricata rule format:</span>
+<span class="C"># action proto src_ip src_port direction dst_ip dst_port (options)</span>
+
+<span class="K">alert</span>  <span class="F">tcp</span>  <span class="S">$HOME_NET</span>  <span class="N">any</span>  <span class="W">-&gt;</span>  <span class="S">$EXTERNAL_NET</span>  <span class="N">443</span>  (
+    <span class="C"># Rule identification</span>
+    <span class="V">msg</span>:<span class="S">"C2 Beacon Pattern — Regular HTTPS POST"</span>;
+    <span class="V">sid</span>:<span class="N">9000001</span>;           <span class="C"># unique rule ID</span>
+    <span class="V">rev</span>:<span class="N">2</span>;                 <span class="C"># revision number</span>
+    <span class="V">classtype</span>:trojan-activity;
+
+    <span class="C"># Protocol / flow specification</span>
+    <span class="V">flow</span>:established,to_server;  <span class="C"># established TCP, to external</span>
+
+    <span class="C"># Application layer detection</span>
+    <span class="V">app-layer-protocol</span>:tls;    <span class="C"># TLS traffic only</span>
+
+    <span class="C"># TLS-specific keywords</span>
+    <span class="V">tls.sni</span>; <span class="V">content</span>:<span class="S">"malicious-domain.com"</span>; <span class="V">nocase</span>;
+
+    <span class="C"># Byte pattern matching</span>
+    <span class="V">content</span>:<span class="S">"|16 03|"</span>; <span class="V">depth</span>:<span class="N">2</span>;   <span class="C"># TLS record header</span>
+
+    <span class="C"># PCRE for complex patterns</span>
+    <span class="V">pcre</span>:<span class="S">"/^POST\s+\/[a-z]{8,12}\.php/i"</span>;
+
+    <span class="C"># Threshold: alert only every 60s per src</span>
+    <span class="V">threshold</span>:type limit, track by_src, count 1, seconds 60;
+
+    <span class="C"># Metadata</span>
+    <span class="V">metadata</span>:attack_target Client_Endpoint,
+              affected_product Windows,
+              mitre_tactic_id TA0011,
+              mitre_technique_id T1071.001;
+)</div>
+  </div>
+
+  <!-- Production rules -->
+  <div class="g2" style="margin-bottom:14px">
+
+    <div class="card cw">
+      <div class="clabel">Rule 01 — DNS Tunneling</div>
+      <div class="ctitle warn">DETECT DNS TUNNELING</div>
+      <div class="cb" style="--cb-accent:var(--warn)">
+<span class="C"># DNS tunneling: data encoded in long subdomains</span>
+<span class="K">alert</span> <span class="F">dns</span> any any -> any 53 (
+    <span class="V">msg</span>:<span class="S">"Possible DNS Tunneling — Long Label"</span>;
+    <span class="V">dns.query</span>;
+    <span class="V">content</span>:<span class="S">"."</span>;
+    <span class="C"># Label longer than 30 chars</span>
+    <span class="V">pcre</span>:<span class="S">"/(?:^|\.)[A-Za-z0-9+\/=]{30,}(?:\.|$)/"</span>;
+    <span class="V">threshold</span>:type both, track by_src,
+               count 10, seconds 60;
+    <span class="V">sid</span>:<span class="N">9000002</span>; <span class="V">rev</span>:<span class="N">1</span>;
+    <span class="V">classtype</span>:policy-violation;
+)
+
+<span class="C"># DNS TXT record queries (used for data exfil)</span>
+<span class="K">alert</span> <span class="F">dns</span> $HOME_NET any -> any 53 (
+    <span class="V">msg</span>:<span class="S">"DNS TXT Record Query — Potential Tunneling"</span>;
+    <span class="V">dns.query</span>;
+    <span class="V">byte_test</span>:<span class="N">2</span>,=,<span class="N">0x0010</span>,<span class="N">0</span>,relative; <span class="C"># qtype=TXT (0x0010)</span>
+    <span class="V">threshold</span>:type limit, track by_src,
+               count 1, seconds 300;
+    <span class="V">sid</span>:<span class="N">9000003</span>; <span class="V">rev</span>:<span class="N">1</span>;
+)</div>
+    </div>
+
+    <div class="card cw">
+      <div class="clabel">Rule 02 — Malware User-Agents</div>
+      <div class="ctitle warn">DETECT MALICIOUS HTTP PATTERNS</div>
+      <div class="cb" style="--cb-accent:var(--warn)">
+<span class="C"># Detect common RAT/beacon User-Agents</span>
+<span class="K">alert</span> <span class="F">http</span> $HOME_NET any -> $EXTERNAL_NET any (
+    <span class="V">msg</span>:<span class="S">"Suspicious HTTP User-Agent — Known Malware"</span>;
+    <span class="V">flow</span>:established,to_server;
+    <span class="V">http.user_agent</span>;
+    <span class="V">content</span>:<span class="S">"python-requests"</span>; <span class="V">nocase</span>;
+    <span class="V">sid</span>:<span class="N">9000004</span>; <span class="V">rev</span>:<span class="N">1</span>;
+)
+
+<span class="C"># Detect HTTP POST with no Referer (C2 beacons)</span>
+<span class="K">alert</span> <span class="F">http</span> $HOME_NET any -> $EXTERNAL_NET any (
+    <span class="V">msg</span>:<span class="S">"HTTP POST with No Referer — C2 Indicator"</span>;
+    <span class="V">flow</span>:established,to_server;
+    <span class="V">http.method</span>; <span class="V">content</span>:<span class="S">"POST"</span>;
+    <span class="V">http.header_names</span>;
+    <span class="V">content</span>:!<span class="S">"Referer"</span>; <span class="V">nocase</span>;
+    <span class="V">http.request_body</span>; <span class="V">dsize</span>:&gt;<span class="N">100</span>;
+    <span class="V">threshold</span>:type both, track by_src,
+               count 5, seconds 60;
+    <span class="V">sid</span>:<span class="N">9000005</span>; <span class="V">rev</span>:<span class="N">1</span>;
+)
+
+<span class="C"># Detect cleartext credential submission</span>
+<span class="K">alert</span> <span class="F">http</span> any any -> $HTTP_SERVERS any (
+    <span class="V">msg</span>:<span class="S">"HTTP POST — Possible Cleartext Credentials"</span>;
+    <span class="V">flow</span>:established,to_server;
+    <span class="V">http.method</span>; <span class="V">content</span>:<span class="S">"POST"</span>;
+    <span class="V">http.request_body</span>;
+    <span class="V">content</span>:<span class="S">"password"</span>; <span class="V">nocase</span>;
+    <span class="V">pcre</span>:<span class="S">"/password=(?!%|&amp;)/i"</span>;
+    <span class="V">sid</span>:<span class="N">9000006</span>; <span class="V">rev</span>:<span class="N">1</span>;
+)</div>
+    </div>
+
+  </div>
+
+  <!-- Suricata EVE JSON -->
+  <div class="card">
+    <div class="clabel">Suricata Output & SIEM Integration</div>
+    <div class="ctitle">EVE JSON — PARSING SURICATA ALERTS</div>
+    <div class="cb">
+<span class="tag">PYTHON</span>
+<span class="C"># Parse Suricata EVE JSON log for high-priority alerts</span>
+<span class="K">import</span> json, sys
+<span class="K">from</span> datetime <span class="K">import</span> datetime
+<span class="K">from</span> collections <span class="K">import</span> Counter
+
+<span class="K">def</span> <span class="F">parse_eve</span>(eve_log: str):
+    alerts = []
+    severity_counts = Counter()
+
+    <span class="K">with</span> open(eve_log) <span class="K">as</span> f:
+        <span class="K">for</span> line <span class="K">in</span> f:
+            <span class="K">try</span>:
+                ev = json.loads(line)
+                <span class="K">if</span> ev.get(<span class="S">'event_type'</span>) != <span class="S">'alert'</span>: <span class="K">continue</span>
+
+                alert = ev[<span class="S">'alert'</span>]
+                sev   = alert.get(<span class="S">'severity'</span>, <span class="N">3</span>)
+                severity_counts[sev] += <span class="N">1</span>
+
+                <span class="K">if</span> sev <= <span class="N">2</span>:  <span class="C"># HIGH / CRITICAL only</span>
+                    alerts.append({
+                        <span class="S">'ts'</span>:       ev.get(<span class="S">'timestamp'</span>),
+                        <span class="S">'src'</span>:      ev.get(<span class="S">'src_ip'</span>),
+                        <span class="S">'dst'</span>:      ev.get(<span class="S">'dest_ip'</span>),
+                        <span class="S">'sport'</span>:    ev.get(<span class="S">'src_port'</span>),
+                        <span class="S">'dport'</span>:    ev.get(<span class="S">'dest_port'</span>),
+                        <span class="S">'msg'</span>:      alert.get(<span class="S">'signature'</span>),
+                        <span class="S">'sid'</span>:      alert.get(<span class="S">'signature_id'</span>),
+                        <span class="S">'category'</span>: alert.get(<span class="S">'category'</span>),
+                        <span class="S">'proto'</span>:    ev.get(<span class="S">'proto'</span>),
+                    })
+            <span class="K">except</span>: <span class="K">pass</span>
+
+    <span class="F">print</span>(f<span class="S">"Total alerts: {sum(severity_counts.values())}"</span>)
+    <span class="F">print</span>(f<span class="S">"Critical/High: {severity_counts[1] + severity_counts[2]}"</span>)
+    <span class="F">print</span>(<span class="S">"\nTop alerts:"</span>)
+    msg_counts = Counter(a[<span class="S">'msg'</span>] <span class="K">for</span> a <span class="K">in</span> alerts)
+    <span class="K">for</span> msg, cnt <span class="K">in</span> msg_counts.most_common(<span class="N">10</span>):
+        <span class="F">print</span>(f<span class="S">"  {cnt:4d}  {msg}"</span>)
+
+    <span class="K">return</span> alerts
+
+alerts = parse_eve(<span class="S">"eve.json"</span>)</div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ DNS FORENSICS ══════════════ -->
+<div class="module z1" id="mod-dns">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">04</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// The Overlooked Protocol //</div>
+      <div class="sh-title">DNS <span class="hl">Forensics</span></div>
+      <div class="sh-desc">DNS is the most information-rich protocol in the network analyst's toolkit — and the most abused. DGA detection, DNS tunneling forensics, passive DNS correlation, and covert channel analysis.</div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:14px">
+
+    <div class="card cp">
+      <div class="clabel">DGA Detection</div>
+      <div class="ctitle ping">DETECTING DOMAIN GENERATION ALGORITHMS</div>
+      <div class="cbody" style="margin-bottom:10px">DGA-generated domains have characteristic statistical properties — high entropy, unusual length distribution, and distinctive character n-gram patterns.</div>
+      <div class="cb" style="--cb-accent:var(--ping2)">
+<span class="tag">PYTHON</span>
+<span class="K">import</span> math, re
+<span class="K">from</span> collections <span class="K">import</span> Counter
+
+<span class="K">def</span> <span class="F">domain_entropy</span>(domain: str) -> float:
+    <span class="S">"""Shannon entropy of the second-level domain."""</span>
+    sld = domain.split(<span class="S">'.'</span>)[<span class="N">0</span>]  <span class="C"># e.g. 'k3mq9xzt4' from 'k3mq9xzt4.com'</span>
+    freq = Counter(sld)
+    total = len(sld)
+    <span class="K">return</span> -sum(c/total * math.log2(c/total) <span class="K">for</span> c <span class="K">in</span> freq.values())
+
+<span class="C"># Consonant-to-vowel ratio (DGA domains have high ratio)</span>
+<span class="K">def</span> <span class="F">consonant_ratio</span>(domain: str) -> float:
+    sld = domain.split(<span class="S">'.'</span>)[<span class="N">0</span>].lower()
+    vowels = set(<span class="S">'aeiou'</span>)
+    consonants = [c <span class="K">for</span> c <span class="K">in</span> sld <span class="K">if</span> c.isalpha() <span class="K">and</span> c <span class="K">not in</span> vowels]
+    letters = [c <span class="K">for</span> c <span class="K">in</span> sld <span class="K">if</span> c.isalpha()]
+    <span class="K">return</span> len(consonants)/len(letters) <span class="K">if</span> letters <span class="K">else</span> <span class="N">0</span>
+
+<span class="K">def</span> <span class="F">is_dga</span>(domain: str) -> dict:
+    sld = domain.split(<span class="S">'.'</span>)[<span class="N">0</span>]
+    ent = domain_entropy(domain)
+    cvr = consonant_ratio(domain)
+    length = len(sld)
+    has_digits = bool(re.search(<span class="S">r'\d'</span>, sld))
+
+    score = <span class="N">0</span>
+    reasons = []
+    <span class="K">if</span> ent > <span class="N">3.5</span>:    score += <span class="N">2</span>; reasons.append(f<span class="S">"high entropy={ent:.2f}"</span>)
+    <span class="K">if</span> cvr > <span class="N">0.75</span>:   score += <span class="N">2</span>; reasons.append(f<span class="S">"high consonants={cvr:.2f}"</span>)
+    <span class="K">if</span> length > <span class="N">15</span>:  score += <span class="N">1</span>; reasons.append(f<span class="S">"long label={length}"</span>)
+    <span class="K">if</span> has_digits:   score += <span class="N">1</span>; reasons.append(<span class="S">"contains digits"</span>)
+
+    <span class="K">return</span> {<span class="S">"domain"</span>: domain, <span class="S">"score"</span>: score,
+            <span class="S">"dga_likely"</span>: score >= <span class="N">4</span>, <span class="S">"reasons"</span>: reasons}
+
+<span class="C"># Test against DNS log</span>
+<span class="K">with</span> open(<span class="S">"dns.log"</span>) <span class="K">as</span> f:
+    <span class="K">for</span> line <span class="K">in</span> f:
+        <span class="K">if</span> line.startswith(<span class="S">'#'</span>): <span class="K">continue</span>
+        fields = line.split(<span class="S">'\t'</span>)
+        <span class="K">if</span> len(fields) < <span class="N">10</span>: <span class="K">continue</span>
+        domain = fields[<span class="N">9</span>]  <span class="C"># query field</span>
+        result = is_dga(domain)
+        <span class="K">if</span> result[<span class="S">"dga_likely"</span>]:
+            <span class="F">print</span>(f<span class="S">"[DGA?] {domain} — {result['reasons']}"</span>)</div>
+    </div>
+
+    <div class="card cp">
+      <div class="clabel">DNS Tunneling Analysis</div>
+      <div class="ctitle ping">DETECTING DNS DATA EXFILTRATION</div>
+      <div class="cbody" style="margin-bottom:10px">DNS tunneling encodes data in subdomains or TXT records. Detection requires volume analysis, label length analysis, and entropy measurement.</div>
+      <div class="cb" style="--cb-accent:var(--ping2)">
+<span class="tag">BASH + PYTHON</span>
+<span class="C"># Step 1: Find domains with many unique subdomains</span>
+<span class="C"># (legitimate CDNs have many subdomains, but not per-query unique)</span>
+<span class="K">cat</span> dns.log | <span class="K">zeek-cut</span> query \
+    | <span class="K">awk</span> -F. '{
+        n=NF; parent=$2"."$NF;
+        if(NF>2) parent=$(NF-1)"."$NF;
+        subs[parent]++
+      } END {
+        for(p in subs) if(subs[p]>50) print subs[p], p
+      }' | <span class="K">sort -rn</span>
+
+<span class="C"># Step 2: Measure query byte rate per src IP</span>
+<span class="K">python3</span> -c <span class="S">"
+import re
+from collections import defaultdict
+
+dns_bytes = defaultdict(int)
+with open('dns.log') as f:
+    for line in f:
+        if line.startswith('#'): continue
+        parts = line.split('\t')
+        if len(parts) < 10: continue
+        src_ip = parts[2]           # orig_h
+        query  = parts[9]           # query field
+        dns_bytes[src_ip] += len(query)
+
+for ip, total in sorted(dns_bytes.items(), key=lambda x:-x[1])[:10]:
+    print(f'{total:8d} bytes  {ip}')
+# High DNS query bytes/host = tunneling candidate
+"</span>
+
+<span class="C"># Step 3: Decode suspected base64 in subdomains</span>
+<span class="K">cat</span> dns.log | <span class="K">zeek-cut</span> query \
+    | <span class="K">grep</span> -oE '[A-Za-z0-9+/=]{20,}' \
+    | <span class="K">while read</span> enc; <span class="K">do</span>
+        decoded=$(<span class="K">echo</span> "$enc" | <span class="K">base64</span> -d 2>/dev/null)
+        [[ -n "$decoded" ]] && <span class="K">echo</span> "$enc → $decoded"
+      <span class="K">done</span></div>
+    </div>
+
+  </div>
+
+  <div class="card">
+    <div class="clabel">Passive DNS Correlation</div>
+    <div class="ctitle">PASSIVE DNS INVESTIGATION WORKFLOW</div>
+    <div class="cb">
+<span class="tag">BASH</span>
+<span class="C"># Passive DNS: correlate IP → all domains that resolved to it</span>
+<span class="C"># From Zeek dns.log (within your capture):</span>
+<span class="K">cat</span> dns.log | <span class="K">zeek-cut</span> query answers \
+    | <span class="K">awk</span> '{
+        split($2, ans, ",")
+        for(i in ans) print ans[i], $1
+      }' | <span class="K">sort | uniq</span> > ip_to_domain.txt
+
+<span class="C"># Now: look up a suspicious IP → all domains that pointed there</span>
+<span class="K">grep</span> "185.220.101.34" ip_to_domain.txt
+
+<span class="C"># External passive DNS sources:</span>
+<span class="C"># VirusTotal → Relations tab → Passive DNS</span>
+<span class="C"># SecurityTrails API:</span>
+<span class="K">curl</span> -H <span class="S">"APIKEY: your_key"</span> \
+    "https://api.securitytrails.com/v1/history/185.220.101.34/dns/a"
+
+<span class="C"># Shodan (IP to DNS history):</span>
+<span class="K">shodan</span> host 185.220.101.34
+
+<span class="C"># DNS timeline reconstruction from PCAP:</span>
+<span class="K">tshark</span> -r cap.pcap -Y "dns && dns.flags.response==1" \
+    -T fields -e frame.time -e dns.qry.name -e dns.a \
+    | <span class="K">sort</span> > dns_timeline.txt
+
+<span class="C"># Find first time a malicious domain appeared in traffic:</span>
+<span class="K">grep</span> "malicious-domain.com" dns_timeline.txt | head -1
+<span class="C"># → Establishes earliest possible infection time</span></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ TLS / JA3 ══════════════ -->
+<div class="module z1" id="mod-tls">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">05</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Encrypted Traffic Analysis //</div>
+      <div class="sh-title">TLS Forensics & <span class="hl">JA3 Fingerprinting</span></div>
+      <div class="sh-desc">Even encrypted traffic leaves fingerprints. JA3 hashes the TLS ClientHello parameters to identify the client implementation — and specific malware families have recognizable JA3 signatures.</div>
+    </div>
+  </div>
+
+  <!-- JA3 explanation -->
+  <div class="card cs" style="margin-bottom:14px">
+    <div class="clabel">JA3 — How It Works</div>
+    <div class="ctitle sonar">TLS FINGERPRINTING METHODOLOGY</div>
+    <div class="cbody" style="margin-bottom:12px">JA3 extracts five fields from the TLS ClientHello, concatenates them with delimiters, and MD5-hashes the result. Different client implementations (malware families, browsers, OS TLS stacks) produce different JA3 values.</div>
+    <div class="g2">
+      <div class="cb" style="--cb-accent:var(--sonar2)">
+<span class="tag">PYTHON — JA3 CALCULATION</span>
+<span class="K">import</span> hashlib
+
+<span class="K">def</span> <span class="F">compute_ja3</span>(
+    tls_version:   int,        <span class="C"># e.g. 771 (TLS 1.2)</span>
+    cipher_suites: list,       <span class="C"># e.g. [49196, 49195, ...]</span>
+    extensions:    list,       <span class="C"># extension type IDs</span>
+    elliptic_curves: list,     <span class="C"># supported groups</span>
+    ec_point_formats: list,    <span class="C"># point format IDs</span>
+) -> str:
+    <span class="S">"""
+    JA3 = MD5(SSLVersion,Ciphers,Extensions,EllipticCurves,EllipticCurveFormats)
+    Each list joined with '-', components joined with ','
+    GREASE values (0x?a?a) are excluded before hashing
+    """</span>
+    GREASE = {0x0a0a,0x1a1a,0x2a2a,0x3a3a,0x4a4a,0x5a5a,
+              0x6a6a,0x7a7a,0x8a8a,0x9a9a,0xaaaa,0xbaba,
+              0xcaca,0xdada,0xeaea,0xfafa}
+
+    cs  = <span class="S">"-"</span>.join(str(c) <span class="K">for</span> c <span class="K">in</span> cipher_suites <span class="K">if</span> c <span class="K">not in</span> GREASE)
+    ext = <span class="S">"-"</span>.join(str(e) <span class="K">for</span> e <span class="K">in</span> extensions    <span class="K">if</span> e <span class="K">not in</span> GREASE)
+    ec  = <span class="S">"-"</span>.join(str(c) <span class="K">for</span> c <span class="K">in</span> elliptic_curves <span class="K">if</span> c <span class="K">not in</span> GREASE)
+    epf = <span class="S">"-"</span>.join(str(p) <span class="K">for</span> p <span class="K">in</span> ec_point_formats)
+
+    raw = <span class="S">","</span>.join([str(tls_version), cs, ext, ec, epf])
+    <span class="K">return</span> hashlib.md5(raw.encode()).hexdigest()
+
+<span class="C"># Example: Cobalt Strike default beacon JA3</span>
+<span class="C"># JA3 = 72a7c4f777d392aa0a9b06b6d20dc79f</span>
+<span class="C"># Zeek extracts this automatically in ssl.log ja3 field</span></div>
+      <div>
+        <div class="cbody" style="margin-bottom:12px"><strong>Key JA3 databases and lookups:</strong></div>
+        <table class="dtable">
+          <tr><th>JA3 HASH</th><th>KNOWN TOOL</th><th>VERDICT</th></tr>
+          <tr><td><code>72a7c4f7...</code></td><td>Cobalt Strike (default)</td><td class="tc-r">MALWARE C2</td></tr>
+          <tr><td><code>a0e9f5d6...</code></td><td>Metasploit Meterpreter</td><td class="tc-r">MALWARE C2</td></tr>
+          <tr><td><code>de9f102c...</code></td><td>Golang net/http</td><td class="tc-y">REVIEW</td></tr>
+          <tr><td><code>cd08e31b...</code></td><td>curl (Linux)</td><td class="tc-g">BENIGN</td></tr>
+          <tr><td><code>d801af15...</code></td><td>Chrome 120 (Win)</td><td class="tc-g">BENIGN</td></tr>
+          <tr><td><code>a689bcd8...</code></td><td>Python Requests</td><td class="tc-y">REVIEW</td></tr>
+        </table>
+        <div class="cb" style="margin-top:10px;--cb-accent:var(--sonar2)">
+<span class="C"># Zeek: extract JA3 + SNI from ssl.log</span>
+<span class="K">cat</span> ssl.log | <span class="K">zeek-cut</span> \
+    server_name ja3 ja3s validation_status \
+    | <span class="K">sort -u</span>
+
+<span class="C"># Hunt for known-bad JA3:</span>
+<span class="K">cat</span> ssl.log | <span class="K">zeek-cut</span> ja3 \
+    | <span class="K">grep</span> "72a7c4f777d392aa0a9b06b6d20dc79f"
+<span class="C"># Hit = Cobalt Strike default config (unmodified)</span>
+
+<span class="C"># tshark: extract JA3 from live/PCAP</span>
+<span class="K">tshark</span> -r cap.pcap \
+    -Y "tls.handshake.type==1" \
+    -T fields \
+    -e ip.src -e ip.dst \
+    -e tls.handshake.extensions_server_name</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TLS cert forensics -->
+  <div class="g2">
+    <div class="card cs">
+      <div class="clabel">Certificate Analysis</div>
+      <div class="ctitle sonar">TLS CERTIFICATE RED FLAGS</div>
+      <div class="cb" style="--cb-accent:var(--sonar2)">
+<span class="C"># Extract certificate details with Zeek x509.log</span>
+<span class="K">cat</span> x509.log | <span class="K">zeek-cut</span> \
+    certificate.subject certificate.issuer \
+    certificate.not_valid_before certificate.not_valid_after \
+    san.dns
+
+<span class="C"># Red flags in certificate analysis:</span>
+<span class="R">Self-signed:</span>
+  certificate.subject == certificate.issuer
+
+<span class="R">Very short validity:</span>
+  not_valid_after - not_valid_before < 30 days
+
+<span class="R">Generic subject fields:</span>
+  C=XX, O=Internet Widgits Pty Ltd (OpenSSL default)
+
+<span class="R">Suspicious CN:</span>
+  CN matches IP address (e.g., CN=185.220.101.34)
+
+<span class="R">Just-registered domain in SAN:</span>
+  compare first-seen in passive DNS vs cert issue date
+
+<span class="C"># Extract cert from PCAP and inspect with openssl:</span>
+<span class="K">tshark</span> -r cap.pcap \
+    -Y "tls.handshake.certificate" \
+    --export-objects tls,./certs/
+<span class="K">openssl</span> x509 -in certs/cert.pem \
+    -text -noout | <span class="K">grep</span> -A5 "Validity\|Subject\|Issuer"</div>
+    </div>
+    <div class="card cs">
+      <div class="clabel">JA3S — Server Fingerprint</div>
+      <div class="ctitle sonar">SERVER-SIDE TLS FINGERPRINTING</div>
+      <div class="cbody" style="margin-bottom:10px">JA3S fingerprints the ServerHello — the server's TLS response. When combined with JA3 (client), it creates a client+server pair that uniquely identifies the malware-to-C2-server relationship.</div>
+      <div class="cb" style="--cb-accent:var(--sonar2)">
+<span class="C"># JA3S = MD5(TLSVersion,CipherSuite,Extensions)</span>
+<span class="C"># From the ServerHello (server's response to ClientHello)</span>
+
+<span class="C"># Known JA3/JA3S pairs:</span>
+<span class="H">JA3  + JA3S → Tool identified</span>
+
+<span class="G">Cobalt Strike C2:</span>
+  JA3:  72a7c4f777d392aa0a9b06b6d20dc79f
+  JA3S: 1aa7bf8b203f935be65c1b17534a7838
+  <span class="C"># Both values match → high confidence Cobalt Strike</span>
+
+<span class="G">Hunting in Zeek:</span>
+<span class="K">cat</span> ssl.log | <span class="K">zeek-cut</span> \
+    orig_h resp_h server_name ja3 ja3s \
+    | <span class="K">awk</span> <span class="S">'$4 != "-" && $5 != "-"'</span> \
+    | <span class="K">grep</span> -f known_bad_ja3.txt
+
+<span class="C"># Lookup JA3 hashes:</span>
+<span class="C"># https://ja3er.com/search/{ja3_hash}</span>
+<span class="C"># https://sslbl.abuse.ch/ja3-fingerprints/</span>
+<span class="C"># Zeek JA3 package: zkg install ja3</span></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ C2 DETECTION ══════════════ -->
+<div class="module z1" id="mod-c2">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">06</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Command & Control //</div>
+      <div class="sh-title">C2 <span class="hl">Beacon Detection</span></div>
+      <div class="sh-desc">Statistical and behavioral methods for detecting C2 beaconing in network traffic — the attacker's most persistent network footprint. Periodicity analysis, byte volume patterns, and protocol anomalies.</div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card cp">
+      <div class="clabel">Statistical Beacon Detection</div>
+      <div class="ctitle ping">PERIODICITY ANALYSIS — PYTHON</div>
+      <div class="cb" style="--cb-accent:var(--ping2)">
+<span class="tag">PYTHON</span>
+<span class="K">import</span> pandas <span class="K">as</span> pd
+<span class="K">import</span> numpy  <span class="K">as</span> np
+<span class="K">from</span> scipy.stats <span class="K">import</span> variation
+
+<span class="K">def</span> <span class="F">detect_beacons</span>(
+    conn_log: str,
+    min_connections: int = <span class="N">10</span>,
+    max_cv: float = <span class="N">0.3</span>,          <span class="C"># coefficient of variation threshold</span>
+    exclude_private: bool = <span class="G">True</span>,
+) -> pd.DataFrame:
+    <span class="S">"""
+    Analyze Zeek conn.log for beaconing behavior.
+    Low CV (coefficient of variation) = regular intervals = beacon.
+    """</span>
+    df = pd.read_csv(conn_log, sep=<span class="S">'\t'</span>,
+                     comment=<span class="S">'#'</span>, low_memory=<span class="G">False</span>,
+                     names=[<span class="S">'ts'</span>,<span class="S">'uid'</span>,<span class="S">'orig_h'</span>,<span class="S">'orig_p'</span>,
+                            <span class="S">'resp_h'</span>,<span class="S">'resp_p'</span>,<span class="S">'proto'</span>,
+                            <span class="S">'service'</span>,<span class="S">'duration'</span>,<span class="S">'orig_bytes'</span>,
+                            <span class="S">'resp_bytes'</span>,<span class="S">'conn_state'</span>])
+    df[<span class="S">'ts'</span>] = pd.to_numeric(df[<span class="S">'ts'</span>], errors=<span class="S">'coerce'</span>)
+    df = df.dropna(subset=[<span class="S">'ts'</span>])
+
+    <span class="K">if</span> exclude_private:
+        private = r<span class="S">'^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.)'</span>
+        df = df[~df[<span class="S">'resp_h'</span>].str.match(private, na=<span class="G">False</span>)]
+
+    results = []
+    grouped = df.groupby([<span class="S">'orig_h'</span>, <span class="S">'resp_h'</span>, <span class="S">'resp_p'</span>])
+
+    <span class="K">for</span> (src, dst, dport), grp <span class="K">in</span> grouped:
+        <span class="K">if</span> len(grp) < min_connections: <span class="K">continue</span>
+        times  = grp[<span class="S">'ts'</span>].sort_values().values
+        deltas = np.diff(times)
+        <span class="K">if</span> len(deltas) < <span class="N">3</span>: <span class="K">continue</span>
+
+        cv    = variation(deltas)  <span class="C"># stddev/mean — lower = more regular</span>
+        mean  = np.mean(deltas)
+        total_bytes = grp[<span class="S">'orig_bytes'</span>].sum() + grp[<span class="S">'resp_bytes'</span>].sum()
+
+        <span class="K">if</span> cv < max_cv:
+            results.append({
+                <span class="S">'src'</span>:      src, <span class="S">'dst'</span>: dst, <span class="S">'port'</span>: dport,
+                <span class="S">'count'</span>:    len(grp),
+                <span class="S">'interval'</span>: round(mean, <span class="N">1</span>),
+                <span class="S">'cv'</span>:       round(cv, <span class="N">4</span>),
+                <span class="S">'bytes'</span>:    int(total_bytes),
+            })
+
+    out = pd.DataFrame(results)
+    <span class="K">if</span> len(out) == <span class="N">0</span>: <span class="K">return</span> out
+    <span class="K">return</span> out.sort_values(<span class="S">'cv'</span>)  <span class="C"># most regular first</span>
+
+beacons = detect_beacons(<span class="S">"conn.log"</span>)
+<span class="F">print</span>(beacons.to_string(index=<span class="G">False</span>))</div>
+    </div>
+
+    <div class="card cp">
+      <div class="clabel">Byte Volume Analysis</div>
+      <div class="ctitle ping">C2 TRAFFIC VOLUME PATTERNS</div>
+      <div class="cbody" style="margin-bottom:10px">C2 beacons have characteristic byte volume ratios. Small regular requests (commands) with occasional large responses (payload delivery) or large requests (exfil) are strong indicators.</div>
+      <div class="cb" style="--cb-accent:var(--ping2)">
+<span class="C"># Conn.log analysis: request/response byte ratio</span>
+<span class="K">cat</span> conn.log | <span class="K">zeek-cut</span> \
+    orig_h resp_h resp_p orig_bytes resp_bytes service \
+    | <span class="K">awk</span> <span class="S">'
+{
+  # C2 beacon pattern: small request, small response
+  # (no data — just keep-alive / status check)
+  if ($4+$5 < 2000 && $4 > 0 && $5 > 0) {
+    small[$1"→"$2":"$3]++
+  }
+  # Data exfil: large outbound, small inbound
+  if ($4 > 100000 && $5 < 1000) {
+    exfil[$1"→"$2":"$3] += $4
+  }
+}
+END {
+  print "=== SMALL BIDIRECTIONAL (potential beacon) ==="
+  for(k in small) if(small[k]>10) print small[k], k
+  print "=== LARGE OUTBOUND (potential exfil) ==="
+  for(k in exfil) print exfil[k], k
+}'</span>
+
+<span class="C"># Detect protocol mismatches (C2 hiding in DNS port)</span>
+<span class="K">cat</span> conn.log | <span class="K">zeek-cut</span> resp_p service \
+    | <span class="K">awk</span> <span class="S">'$1==53 && $2!="dns" && $2!="-"'</span>
+<span class="C"># Non-DNS traffic on port 53 = DNS port tunneling</span>
+
+<span class="C"># Detect HTTPS on non-standard ports</span>
+<span class="K">cat</span> conn.log | <span class="K">zeek-cut</span> resp_p service \
+    | <span class="K">awk</span> <span class="S">'$2=="ssl" && $1!=443 && $1!=8443 && $1!=465 && $1!=993'</span>
+<span class="C"># TLS on weird port = C2 evasion attempt</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="clabel">C2 Framework Signatures</div>
+    <div class="ctitle">KNOWN C2 NETWORK SIGNATURES</div>
+    <table class="dtable">
+      <tr><th>C2 FRAMEWORK</th><th>NETWORK INDICATORS</th><th>DETECTION METHOD</th></tr>
+      <tr>
+        <td><strong>Cobalt Strike</strong></td>
+        <td>Default: <code>jquery-3.3.1.min.js</code> URI, cookie-based C2 data, checksum8 URI, specific malleable C2 headers. Default JA3: <code>72a7c4f7...</code></td>
+        <td class="tc-r">JA3 match + URI pattern + Suricata ET rules</td>
+      </tr>
+      <tr>
+        <td><strong>Sliver</strong></td>
+        <td>mTLS default port 8888, WireGuard on 51820, HTTP/S with random URI paths, cert uses random org names</td>
+        <td class="tc-y">Port 8888 + mTLS + cert org pattern</td>
+      </tr>
+      <tr>
+        <td><strong>Metasploit Meterpreter</strong></td>
+        <td>HTTPS on 4444/8443/443, specific TLS fingerprint, reverse_http URIs: <code>/V6XJP3_</code> type pattern</td>
+        <td class="tc-r">JA3 + port + URI randomness</td>
+      </tr>
+      <tr>
+        <td><strong>Havoc Framework</strong></td>
+        <td>Default port 40056/443, AES-256 encrypted HTTP body, specific HTTP headers: <code>X-Havoc-*</code></td>
+        <td class="tc-y">Custom HTTP header pattern</td>
+      </tr>
+      <tr>
+        <td><strong>Empire / PowerShell</strong></td>
+        <td>Regular HTTP polling, session cookies, default staging URI <code>/index.asp</code>, specific User-Agent</td>
+        <td class="tc-r">URI + UA + interval analysis</td>
+      </tr>
+      <tr>
+        <td><strong>DNS C2 (dnscat2)</strong></td>
+        <td>Repeated TXT queries to single domain, hex-encoded subdomains, session IDs in labels</td>
+        <td class="tc-r">DNS TXT + volume + label analysis</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ LATERAL MOVEMENT ══════════════ -->
+<div class="module z1" id="mod-lateral">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">07</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Network-Level Attack Detection //</div>
+      <div class="sh-title">Lateral Movement <span class="hl">From Network Evidence</span></div>
+      <div class="sh-desc">Lateral movement leaves distinctive network patterns — new SMB relationships, unusual Kerberos ticket requests, RDP from unexpected sources, and credential reuse across hosts.</div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card cw">
+      <div class="clabel">SMB Lateral Movement</div>
+      <div class="ctitle warn">DETECTING PsExec / SMB LATERAL MOVEMENT</div>
+      <div class="cbody" style="margin-bottom:10px">SMB-based lateral movement (PsExec, WMI, Admin$) is highly visible in network captures. Key indicators: workstation-to-workstation SMB, ADMIN$ share access, and PSEXESVC service creation.</div>
+      <div class="cb" style="--cb-accent:var(--warn)">
+<span class="tag">ZEEK + BASH</span>
+<span class="C"># Workstation-to-workstation SMB (unusual — should only go to servers)</span>
+<span class="C"># Assumes workstations are in 10.1.x.x, servers in 10.2.x.x</span>
+<span class="K">cat</span> conn.log | <span class="K">zeek-cut</span> orig_h resp_h resp_p \
+    | <span class="K">awk</span> <span class="S">'
+$3 == 445 &&
+/^10\.1\./ &&
+$2 ~ /^10\.1\./ {
+    print $1, "→", $2, ":445 (workstation-to-workstation SMB)"
+}'</span>
+
+<span class="C"># PsExec: ADMIN$ share access followed by service creation</span>
+<span class="C"># Look in smb_mapping.log for ADMIN$ access:</span>
+<span class="K">cat</span> smb_mapping.log | <span class="K">zeek-cut</span> ts path \
+    | <span class="K">grep</span> "ADMIN\$\|IPC\$\|C\$"
+
+<span class="C"># SMB file writes to system paths (lateral tool staging)</span>
+<span class="K">cat</span> smb_files.log | <span class="K">zeek-cut</span> action path name \
+    | <span class="K">awk</span> <span class="S">'$1=="SMB::FILE_WRITE"'</span> \
+    | <span class="K">grep</span> -i "\.exe\|\.dll\|\.ps1\|\.bat"
+
+<span class="C"># Suricata rule for PsExec ADMIN$ access:</span>
+<span class="C">alert smb $HOME_NET any -> $HOME_NET 445 (</span>
+<span class="C">    msg:"PsExec ADMIN$ Share Access";  </span>
+<span class="C">    content:"|00 00 00 00 0e 00 00 00|"; depth:8; offset:4;</span>
+<span class="C">    content:"ADMIN$"; nocase;</span>
+<span class="C">    sid:9000010; rev:1;</span>
+<span class="C">    classtype:policy-violation;</span>
+<span class="C">)</span></div>
+    </div>
+
+    <div class="card cw">
+      <div class="clabel">Kerberos Forensics</div>
+      <div class="ctitle warn">KERBEROASTING & PASS-THE-TICKET</div>
+      <div class="cbody" style="margin-bottom:10px">Kerberos attacks leave distinctive traffic patterns. AS-REP roasting, Kerberoasting, and Pass-the-Ticket all have network-level signatures.</div>
+      <div class="cb" style="--cb-accent:var(--warn)">
+<span class="tag">TSHARK + ZEEK</span>
+<span class="C"># AS-REP Roasting: TGT requests without pre-auth</span>
+<span class="C"># (DONT_REQUIRE_PREAUTH set — hash returned without creds)</span>
+<span class="K">tshark</span> -r cap.pcap -Y \
+    "kerberos.msg_type==10 && kerberos.PA_DATA_type!=2" \
+    -T fields -e ip.src -e kerberos.name_string
+
+<span class="C"># Kerberoasting: many TGS requests in burst</span>
+<span class="C"># (requesting service tickets for multiple SPNs)</span>
+<span class="K">tshark</span> -r cap.pcap -Y "kerberos.msg_type==12" \
+    -T fields -e ip.src -e kerberos.sname_string \
+    | <span class="K">sort | uniq -c | sort -rn</span>
+<span class="C"># More than 5-10 TGS requests quickly = Kerberoasting</span>
+
+<span class="C"># Zeek kerberos.log analysis:</span>
+<span class="K">cat</span> kerberos.log | <span class="K">zeek-cut</span> \
+    client service success \
+    | <span class="K">awk</span> '$3=="false"' \
+    | <span class="K">sort | uniq -c | sort -rn</span>
+<span class="C"># Failed Kerberos = wrong creds or ticket reuse</span>
+
+<span class="C"># Golden/Silver ticket: unusual forged TGT properties</span>
+<span class="C"># Ticket lifetime field = 10 years (default golden ticket)</span>
+<span class="K">tshark</span> -r cap.pcap -Y "kerberos.msg_type==11" \
+    -T fields -e kerberos.till \
+    | <span class="K">awk</span> -F'T' '$1 > "2035"'  <span class="C"># ticket valid until 2035+ = forged</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="clabel">Network Topology Mapping</div>
+    <div class="ctitle">RECONSTRUCT ATTACKER MOVEMENT FROM CONN.LOG</div>
+    <div class="cb">
+<span class="tag">PYTHON</span>
+<span class="K">import</span> pandas <span class="K">as</span> pd
+<span class="K">import</span> networkx <span class="K">as</span> nx
+
+<span class="K">def</span> <span class="F">map_lateral_movement</span>(conn_log: str, suspicious_ports=(445,135,3389,5985,22)):
+    <span class="S">"""Build lateral movement graph from conn.log."""</span>
+    df = pd.read_csv(conn_log, sep=<span class="S">'\t'</span>, comment=<span class="S">'#'</span>,
+                     usecols=[<span class="S">'ts'</span>,<span class="S">'orig_h'</span>,<span class="S">'resp_h'</span>,<span class="S">'resp_p'</span>,
+                               <span class="S">'orig_bytes'</span>,<span class="S">'resp_bytes'</span>],
+                     names=[<span class="S">'ts'</span>,<span class="S">'uid'</span>,<span class="S">'orig_h'</span>,<span class="S">'orig_p'</span>,<span class="S">'resp_h'</span>,<span class="S">'resp_p'</span>,
+                            <span class="S">'proto'</span>,<span class="S">'service'</span>,<span class="S">'duration'</span>,<span class="S">'orig_bytes'</span>,<span class="S">'resp_bytes'</span>],
+                     low_memory=<span class="G">False</span>)
+
+    <span class="C"># Filter to lateral movement ports only</span>
+    lateral = df[df[<span class="S">'resp_p'</span>].isin(suspicious_ports)]
+
+    <span class="C"># Build directed graph</span>
+    G = nx.DiGraph()
+    <span class="K">for</span> _, row <span class="K">in</span> lateral.iterrows():
+        G.add_edge(row[<span class="S">'orig_h'</span>], row[<span class="S">'resp_h'</span>],
+                   port=row[<span class="S">'resp_p'</span>],
+                   bytes=row[<span class="S">'orig_bytes'</span>]+row[<span class="S">'resp_bytes'</span>])
+
+    <span class="C"># Find pivot points (hosts that connect AND receive connections)</span>
+    pivots = [n <span class="K">for</span> n <span class="K">in</span> G.nodes()
+              <span class="K">if</span> G.in_degree(n) > <span class="N">0</span> <span class="K">and</span> G.out_degree(n) > <span class="N">0</span>]
+
+    <span class="F">print</span>(f<span class="S">"Hosts with lateral connections: {G.number_of_nodes()}"</span>)
+    <span class="F">print</span>(f<span class="S">"Lateral connections: {G.number_of_edges()}"</span>)
+    <span class="F">print</span>(f<span class="S">"\nPivot points (attacker likely used these):"</span>)
+    <span class="K">for</span> p <span class="K">in</span> pivots:
+        ins  = list(G.predecessors(p))
+        outs = list(G.successors(p))
+        <span class="F">print</span>(f<span class="S">"  {p}: received from {ins} → moved to {outs}"</span>)
+
+    <span class="K">return</span> G
+
+G = map_lateral_movement(<span class="S">"conn.log"</span>)
+<span class="C"># Visualize: nx.draw(G, with_labels=True) + matplotlib</span></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ QUIZ ══════════════ -->
+<div class="module z1" id="mod-quiz">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">∞</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Module 07 Assessment //</div>
+      <div class="sh-title">Network Forensics <span class="hl">Exam</span></div>
+      <div class="sh-desc">Ten questions covering PCAP analysis, Zeek log correlation, Suricata rules, DNS forensics, TLS/JA3 fingerprinting, C2 beacon detection, and lateral movement identification.</div>
+    </div>
+  </div>
+
+  <div id="quiz-container"></div>
+
+  <div class="score-panel">
+    <div class="score-big" id="score-big">—</div>
+    <div class="score-sub" id="score-sub">ANSWER QUESTIONS TO TRACK SCORE</div>
+    <div class="score-bar"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+    <button class="reset-btn" onclick="resetQuiz()">RESET EXAM</button>
+  </div>
+
+</div>
+</div>
+
+<script>
+function sw(id,btn){
+  document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('mod-'+id).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function iTab(id,btn){
+  const mod=btn.closest('.module');
+  mod.querySelectorAll('.itab').forEach(t=>t.classList.remove('active'));
+  mod.querySelectorAll('.ipanel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ip-'+id).classList.add('active');
+}
+
+const Qs=[
+  {
+    q:"Zeek's ssl.log shows a connection where ja3='72a7c4f777d392aa0a9b06b6d20dc79f' and server_name is empty (no SNI). What does this combination strongly indicate, and what is your immediate response?",
+    opts:[
+      "Normal browser traffic — Chrome sometimes omits SNI on internal connections",
+      "This JA3 is the default Cobalt Strike beacon signature. No SNI means the beacon is connecting to an IP directly (no domain), bypassing certificate validation. Immediately: (1) identify the source host, (2) correlate src IP with endpoint logs, (3) check conn.log for regularity/beaconing pattern, (4) block the destination at perimeter and isolate the source host",
+      "The JA3 indicates an outdated TLS 1.0 client — update the host's TLS configuration",
+      "Missing SNI is a Zeek parsing bug — re-run Zeek with a newer version"
+    ],
+    correct:1,
+    explain:"<strong>JA3 72a7c4f7... is the well-known default Cobalt Strike beacon fingerprint.</strong> The absence of SNI confirms the beacon is connecting directly to an IP address (not a domain name), which means the C2 operator either used a raw IP or the beacon is doing direct IP beaconing — common in Cobalt Strike's default HTTPS listener before malleable C2 profiles are applied. The combination: known-bad JA3 + no SNI + regular intervals in conn.log = high-confidence Cobalt Strike. Note: sophisticated operators change the JA3 via malleable C2 profiles, so absence of this hash doesn't rule out CS — but its presence is definitive."
+  },
+  {
+    q:"You're analyzing a Zeek dns.log and find host 10.1.5.23 has made 847 NXDOMAIN queries in one hour to random-looking domains like 'k3mq9xzt4.com', 'n8vb2cjhm6.net'. A Python entropy calculation shows these domains have entropy > 3.8 and consonant ratios > 0.78. What Wireshark display filter would you use to capture the full DNS traffic from this host for deeper analysis?",
+    opts:[
+      "ip.addr == 10.1.5.23 && dns",
+      "ip.src == 10.1.5.23 && dns && dns.flags.rcode == 3",
+      "Both are useful: 'ip.addr == 10.1.5.23 && dns' for full bidirectional DNS picture; add '&& dns.flags.rcode == 3' to isolate NXDOMAIN responses. Also use 'dns.qry.name.len > 20' to find the high-entropy labels specifically",
+      "dns.qry.name contains 'com' — find all .com queries from the host"
+    ],
+    correct:2,
+    explain:"<strong>Layered filtering gives the most complete picture.</strong> Start broad: <code>ip.addr == 10.1.5.23 && dns</code> — this shows all DNS traffic (queries AND responses) both from and to the host. Then narrow: add <code>&& dns.flags.rcode == 3</code> to isolate NXDOMAIN responses — this shows which DGA domains aren't resolving (all of them, for a bot that hasn't hit the registered C2 domain yet). The label length filter <code>dns.qry.name.len > 20</code> helps isolate the DGA-style queries from legitimate short-label queries. Filtering only on src limits you to queries; src OR dst (addr) gives the full conversation. Layer these filters progressively rather than jumping to a narrow filter that might miss context."
+  },
+  {
+    q:"In a Suricata rule you write: 'threshold:type limit, track by_src, count 1, seconds 60'. An analyst asks why not use 'count 1, seconds 1' to catch every single occurrence. What is the correct explanation?",
+    opts:[
+      "'seconds 1' is invalid syntax — minimum is 60 seconds",
+      "Using count 1, seconds 1 would generate one alert per packet per second, causing alert storms that overwhelm the SIEM and train analysts to ignore the rule. 'count 1, seconds 60' means: alert at most once per source IP per 60 seconds — maintaining signal while suppressing duplicate alerts for sustained activity",
+      "The threshold keyword requires count to equal the seconds value — they must match",
+      "'by_src' tracking only works with counts above 5 — use by_dst for single-count thresholds"
+    ],
+    correct:1,
+    explain:"<strong>Threshold tuning prevents alert storms and analyst fatigue.</strong> Without thresholds, a single infected host making 1000 C2 connections/hour would generate 1000 identical alerts — analysts quickly learn to ignore that rule. The 'limit' type means: fire the alert once, then suppress additional alerts from the same src for the window. 'both' type means: fire once AFTER count is reached, then suppress. For high-frequency C2 beacons, 'type both, count 5, seconds 60' is often better than 'limit, count 1' — it requires seeing at least 5 occurrences before alerting (reduces FPs) but still only fires once per minute. Tuning thresholds is as important as the detection logic itself."
+  },
+  {
+    q:"Zeek's conn.log shows host 10.1.3.44 connecting to 185.220.101.34:443 with interval mean=62.3s and coefficient of variation=0.04. The origin bytes average 347 bytes per connection and response bytes average 284. What does this traffic profile tell you and what is missing from this analysis?",
+    opts:[
+      "This is normal HTTPS keep-alive traffic — proceed to the next alert",
+      "CV=0.04 is extremely regular (near-zero variation) and the 62s interval matches a C2 beacon with ~3% jitter. Small bidirectional byte counts (347/284) match a minimal beacon with no large payload delivery yet. Missing: JA3 fingerprint (check ssl.log for the ja3 field), DNS resolution history for 185.220.101.34 (passive DNS), and endpoint process correlation (which process on 10.1.3.44 owns this connection?)",
+      "The CV of 0.04 indicates this is compressed video traffic — the regularity is from the video codec's frame rate",
+      "Response bytes should be larger than request bytes for C2 — this pattern doesn't match because response bytes (284) are less than origin bytes (347)"
+    ],
+    correct:1,
+    explain:"<strong>Complete beacon profile with identified analytical gaps.</strong> CV=0.04 (4% variation in intervals) is the mathematical signature of automated periodic communication — humans don't communicate this regularly. 62s mean interval is consistent with a common C2 sleep configuration. The byte volumes (347 origin / 284 response) are classic minimal beacon: small HTTP POST (command check-in) with small HTTP 200 response (no pending commands). What's missing for a complete picture: (1) ssl.log → ja3 field: does the TLS fingerprint match a known C2 framework? (2) dns.log: did the host resolve 185.220.101.34 to a domain? What domain? When? (3) Endpoint correlation: EDR/Sysmon data — which process (pid) owns the connection on 10.1.3.44?"
+  },
+  {
+    q:"DNS tunneling is detected in a PCAP. The suspected host is making TXT queries to 'aXBjb25maWc=.tunnel.evil-domain.com'. Decoding 'aXBjb25maWc=' from base64 gives 'ipconfig'. What forensic conclusions can you draw and what additional analysis is needed?",
+    opts:[
+      "The host ran 'ipconfig' locally — this is not malware, just a sysadmin checking network config",
+      "The base64-decoded 'ipconfig' in the DNS TXT query label confirms active DNS C2 tunneling: the attacker is sending Windows commands encoded in DNS subdomain labels. The response TXT records contain the command output. Additional analysis: (1) decode ALL query labels from this host, (2) decode all TXT response records, (3) reconstruct the complete attacker session from the query/response sequence, (4) identify what other commands were executed, (5) check conn.log for data volume to quantify what was exfiltrated",
+      "This is automatic Windows DNS telemetry — Microsoft encodes diagnostic data in DNS TXT records",
+      "The domain tunnel.evil-domain.com must be blocked at the DNS level — no further analysis needed"
+    ],
+    correct:1,
+    explain:"<strong>Confirmed DNS command-and-control channel with active command execution.</strong> The decoded content 'ipconfig' is a Windows reconnaissance command — this confirms bidirectional DNS tunneling: attacker sends commands in query labels (base64 encoded), responses (TXT records) contain the command output. The analysis steps: (1) Extract all labels from tunnel.evil-domain.com queries and decode each from base64 — reconstruct the full command history. (2) Extract all TXT record responses and decode — reconstruct the full output history. (3) Sequence queries+responses by timestamp to reconstruct the attacker's session timeline. (4) Check conn.log for total bytes to/from the DNS server and the resolver — quantify data transferred. (5) This constitutes an active incident — the attacker has shell-level access and is actively issuing commands."
+  },
+  {
+    q:"A Zeek conn.log shows 10.1.2.15 (workstation) connecting to 10.1.8.44 (another workstation) on port 445, followed 8 minutes later by 10.1.8.44 connecting to 10.1.9.12 on port 445, then 10.1.9.12 connecting to 10.1.10.3 (DC) on port 445. What is the attack pattern and which log provides the most actionable detail?",
+    opts:[
+      "Normal Windows file sharing — workstations frequently access each other over SMB",
+      "This is a lateral movement chain via SMB: attacker pivoted from .15 → .44 → .12 → DC. The smb_files.log and smb_mapping.log provide the most actionable detail — they show exactly which shares were accessed (ADMIN$, C$, IPC$), which files were written (lateral tools like PsExec binary), and the SMB session metadata including the credentials used for each hop",
+      "This is Kerberos ticket relay — the SMB connections are just part of authentication",
+      "The DC connection is concerning but workstation-to-workstation is normal — only alert on the DC connection"
+    ],
+    correct:1,
+    explain:"<strong>Classic hop-chain lateral movement: workstation → workstation → DC.</strong> The pattern (WS1→WS2→WS3→DC on port 445, each 8 minutes apart) is a textbook pivot chain: attacker compromises WS1, uses credentials/hash to move to WS2, then WS3, targeting the Domain Controller. Zeek logs to consult: <code>smb_mapping.log</code> shows which shares were accessed (ADMIN$ = PsExec territory, C$ = direct file system access, IPC$ = RPC), <code>smb_files.log</code> shows what files were read/written (look for .exe drops — PsExec binary, custom backdoors), <code>ntlm.log</code> or <code>kerberos.log</code> shows authentication method (NTLM = possible Pass-the-Hash; Kerberos = possible Pass-the-Ticket or Kerberoasting precursor). The time gaps (8 min) suggest human operator, not automated — APT behavior."
+  },
+  {
+    q:"You write a Suricata rule with 'flow:established,to_server' but an analyst reports the rule never fires on HTTP POST requests. The capture clearly shows matching POSTs. What is the likely cause?",
+    opts:[
+      "Suricata doesn't support HTTP detection — use Zeek instead",
+      "The alert keyword should be 'pass' for HTTP traffic — 'alert' only works for TCP",
+      "The rule may be missing the 'app-layer-protocol:http' keyword, OR the HTTP traffic is on a non-standard port that Suricata isn't decoding as HTTP. Suricata auto-detects HTTP only on ports in the http.ports variable (default: 80,8080,8888,...). If the C2 uses port 4444 for HTTP, add 'app-layer-protocol:http' to force protocol detection regardless of port",
+      "flow:established excludes HTTP because HTTP is stateless — use flow:stateless instead"
+    ],
+    correct:2,
+    explain:"<strong>Protocol detection port configuration and app-layer-protocol keyword.</strong> Suricata performs protocol detection based on configured port lists AND content inspection. By default, HTTP is only detected on ports in <code>app-layer.protocols.http.request-body-limit</code> and the <code>http.ports</code> variable. If C2 traffic uses HTTP on port 443 (with 'ssl' wrapping) or an unusual port like 4444, Suricata may not apply HTTP keywords. Fix: add <code>app-layer-protocol:http;</code> to force application layer detection. Also verify the rule's port specification — if you wrote 'any any -> any 443', TLS-wrapped HTTP may not expose the HTTP layer for content inspection. For HTTP over TLS, you need separate TLS-level detection or to decrypt the traffic first. Always test rules against a known-good PCAP before deploying."
+  },
+  {
+    q:"A PCAP shows TXT record queries with labels like 'A1B2C3D4.data.tunnel.com', 'E5F6A7B8.data.tunnel.com' arriving at 200ms intervals. The labels are hex strings. The total query volume is 50KB in 10 minutes. What type of tunneling is this and how fast is the channel?",
+    opts:[
+      "This is DNSSEC validation traffic — DNSSEC uses hex labels for key material",
+      "This is a hex-encoded DNS exfiltration channel. 50KB in 10 minutes = ~83 bytes/second. Each hex label (8 chars) encodes 4 bytes. At 200ms intervals: ~5 queries/second × ~4 bytes = ~20 bytes/sec query data plus TXT response data. This is a slow but stealthy channel — suitable for credential/config exfil. The 200ms interval suggests automated operation (not human-typed commands)",
+      "This is legitimate certificate transparency log monitoring — hex labels are certificate hashes",
+      "At 50KB/10min this is too slow to be exfiltration — the threshold for concern is 1MB minimum"
+    ],
+    correct:1,
+    explain:"<strong>Hex-encoded DNS data exfiltration channel — speed calculation matters.</strong> The channel analysis: 8-char hex labels = 4 bytes of data each. At 200ms intervals = 5 queries/second × 4 bytes = 20 bytes/second of outbound data in queries. TXT responses can carry more (up to ~255 bytes each), so inbound C2 commands can arrive faster than outbound data. 50KB in 10 minutes = 83 bytes/second total — this suggests hex labels aren't the only data source OR responses carry significant data. Real-world implication: at 83 bytes/second, exfiltrating a 1MB credential file would take ~3.3 hours — slow but under normal DNS traffic thresholds. Detection: regular 200ms intervals are machine-generated (too precise for human interaction), hex labels have low entropy (0-9, A-F only), and the volume pattern (sustained low-rate) differs from legitimate bursty DNS usage."
+  },
+  {
+    q:"Zeek generates a files.log entry with md5='d41d8cd98f00b204e9800998ecf8427e'. This is the MD5 of an empty file. The file has mime_type='application/zip' and total_bytes=0. What does this indicate during an investigation?",
+    opts:[
+      "A legitimate empty ZIP file was transferred — no concern",
+      "MD5 d41d8cd98f00b204e9800998ecf8427e is the universally known hash of a zero-byte file. A ZIP with application/zip MIME type but zero bytes and this hash indicates: either (1) the file transfer was aborted/connection dropped before data was sent, (2) the file was deliberately sent empty as a decoy or connectivity test, or (3) Zeek failed to capture the file payload. Cross-reference conn.log: if orig_bytes > 0 but files.log shows 0 bytes, data was transferred but Zeek failed to extract it — look at the raw PCAP",
+      "This hash means the file is guaranteed safe — known-good files have predictable MD5s",
+      "Zero-byte files cannot have a ZIP MIME type — this is a Zeek parsing error"
+    ],
+    correct:1,
+    explain:"<strong>d41d8cd98f00b204e9800998ecf8427e — the famous empty file MD5.</strong> This is one of the most recognizable hashes in digital forensics: it's the MD5 of an empty (0-byte) input. When you see this in files.log alongside a non-zero MIME type, it warrants investigation. The most forensically important scenario: if conn.log shows orig_bytes > 0 for the same uid (connection), but files.log shows total_bytes=0, data was transmitted but Zeek's file extraction failed — possibly due to encryption, unusual fragmentation, or stream reassembly issues. Check the raw PCAP with tshark --export-objects for that stream. The 'application/zip' MIME with 0 bytes could also mean the HTTP response sent a Content-Type header but the body transfer stalled — useful for reconstructing exactly what happened in the connection."
+  },
+  {
+    q:"A network graph built from conn.log shows host 10.1.5.5 has an in-degree of 1 (received one connection, from the initial compromised host) and an out-degree of 12 (connected to 12 different internal hosts on ports 445, 3389, 22). What role does 10.1.5.5 play in the attack and what is your containment priority?",
+    opts:[
+      "10.1.5.5 is a network scanner — run vulnerability scans against it to find the patch gap",
+      "10.1.5.5 is the primary pivot host: it received the initial lateral movement from the entry point and then spread to 12 additional hosts. High out-degree with targeted ports (445=SMB, 3389=RDP, 22=SSH) confirms active attacker usage as a staging point. Containment priority: (1) isolate 10.1.5.5 immediately — it is actively spreading, (2) identify all 12 downstream hosts and assess their compromise status, (3) capture memory from 10.1.5.5 before isolation to preserve attacker tools, (4) do NOT reboot — memory evidence critical",
+      "10.1.5.5 is a jump server used by IT for legitimate administration — verify with the sysadmin before taking action",
+      "Out-degree of 12 is low — only isolate hosts with out-degree > 50"
+    ],
+    correct:1,
+    explain:"<strong>High out-degree pivot host = active attacker staging point — immediate priority.</strong> In a lateral movement graph: in-degree = how many hosts connected to this one (1 = came from the entry point), out-degree = how many hosts this one connected to (12 = active lateral spread). The specific ports (445/SMB, 3389/RDP, 22/SSH) confirm this is attacker lateral movement, not backup jobs or patch management. Correct response sequence: (1) Memory capture FIRST (winpmem/LiME) — the attacker's tools, credentials, and C2 config are in RAM. (2) Isolate 10.1.5.5 at the network level (firewall rule or EDR isolation — not power-off). (3) Enumerate all 12 downstream hosts — each is potentially compromised. (4) Check each downstream host's conn.log out-degree — did any of the 12 also spread further? Build the complete propagation tree before any remediation."
+  }
+];
+
+let answered=new Array(Qs.length).fill(false);
+let score=0;
+const topics=['JA3 Fingerprinting','DNS Filtering','Suricata Thresholds','Beacon Profiling','DNS Tunneling','Lateral Movement SMB','Suricata Rules','DNS Exfil Speed','File Forensics','Graph Analysis'];
+
+function buildQuiz(){
+  const c=document.getElementById('quiz-container');
+  c.innerHTML='';
+  Qs.forEach((q,qi)=>{
+    const d=document.createElement('div');
+    d.className='qcard';
+    d.innerHTML=`
+      <div class="qnum">Q${String(qi+1).padStart(2,'0')} / ${Qs.length} · ${topics[qi]}</div>
+      <div class="qtext">${q.q}</div>
+      <div class="qopts">${q.opts.map((o,oi)=>`<button class="qopt" onclick="ans(${qi},${oi},this)">${String.fromCharCode(65+oi)}. ${o}</button>`).join('')}</div>
+      <div class="qexplain" id="exp-${qi}">${q.explain}</div>
+    `;
+    c.appendChild(d);
+  });
+  updateScore();
+}
+
+function ans(qi,oi,btn){
+  if(answered[qi])return;
+  answered[qi]=true;
+  btn.closest('.qopts').querySelectorAll('.qopt').forEach(b=>b.classList.add('locked'));
+  if(oi===Qs[qi].correct){btn.classList.add('correct');score++;}
+  else{btn.classList.add('wrong');btn.closest('.qopts').querySelectorAll('.qopt')[Qs[qi].correct].classList.add('correct');}
+  document.getElementById('exp-'+qi).classList.add('show');
+  updateScore();
+}
+
+function updateScore(){
+  const done=answered.filter(Boolean).length;
+  const big=document.getElementById('score-big');
+  const sub=document.getElementById('score-sub');
+  const fill=document.getElementById('score-fill');
+  if(done===0){big.textContent='—';sub.textContent='ANSWER QUESTIONS TO TRACK SCORE';return;}
+  const pct=Math.round(score/done*100);
+  big.textContent=`${score}/${done}`;
+  const rem=Qs.length-done;
+  sub.textContent=rem>0?`${pct}% · ${rem} REMAINING`:pct>=80?`${pct}% · NETWORK ANALYST CERTIFIED`:pct>=60?`${pct}% · REVIEW WEAK AREAS`:`${pct}% · REPEAT MODULE`;
+  fill.style.width=pct+'%';
+  fill.style.background=pct>=80?'#00ffcc':pct>=60?'#ff8c1a':'#ff2244';
+}
+
+function resetQuiz(){
+  answered=new Array(Qs.length).fill(false);
+  score=0;
+  buildQuiz();
+}
+
+buildQuiz();
+</script>
+</body>
+</html>

@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCRIPT//SEC — Security Scripting Fundamentals</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --bg0: #03070d;
+  --bg1: #060d18;
+  --bg2: #0a1525;
+  --bg3: #0f1e35;
+  --bg4: #162844;
+
+  --green:  #39ff7e;
+  --green2: #1adf5c;
+  --cyan:   #00cfff;
+  --cyan2:  #0099cc;
+  --yellow: #ffe04b;
+  --orange: #ff8c42;
+  --red:    #ff3d5a;
+  --purple: #b06aff;
+  --pink:   #ff5fa0;
+
+  --text:   #cce0ff;
+  --dim:    #4a6a90;
+  --muted:  #1e3050;
+
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --display: 'Syne', sans-serif;
+
+  --r: 3px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg0);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── GRID NOISE OVERLAY ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,207,255,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,207,255,.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── GLOW ORBS ── */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: .12;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb-1 { width: 500px; height: 500px; background: var(--cyan);  top: -200px; right: -100px; }
+.orb-2 { width: 400px; height: 400px; background: var(--green); bottom: 100px; left: -100px; }
+
+.z1 { position: relative; z-index: 1; }
+
+/* ══ TOP NAV ══ */
+nav {
+  position: sticky; top: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px;
+  height: 56px;
+  background: rgba(3,7,13,.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0,207,255,.08);
+}
+
+.nav-brand {
+  font-family: var(--mono);
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.nav-brand span { color: var(--green); }
+
+.nav-pills {
+  display: flex; gap: 4px;
+}
+.nav-pill {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--dim);
+  background: transparent;
+  border: none;
+  transition: all .2s;
+}
+.nav-pill:hover { color: var(--text); }
+.nav-pill.active {
+  color: var(--bg0);
+  font-weight: 700;
+}
+.nav-pill.bash.active  { background: var(--green); }
+.nav-pill.python.active { background: var(--cyan); }
+.nav-pill.pwsh.active  { background: var(--purple); }
+.nav-pill.secure.active { background: var(--orange); }
+.nav-pill.ir.active    { background: var(--red); }
+
+/* ══ HERO STRIP ══ */
+.hero {
+  padding: 64px 40px 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: .65rem;
+  letter-spacing: 5px;
+  color: var(--green);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  opacity: .8;
+}
+
+.hero-title {
+  font-family: var(--display);
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+}
+.hero-title .t-bash   { color: var(--green); }
+.hero-title .t-py     { color: var(--cyan); }
+.hero-title .t-ps     { color: var(--purple); }
+
+.hero-sub {
+  font-size: 1rem;
+  color: var(--dim);
+  font-weight: 300;
+  max-width: 560px;
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+
+/* Stat chips */
+.stat-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.stat-chip {
+  font-family: var(--mono);
+  font-size: .68rem;
+  padding: 6px 14px;
+  border-radius: var(--r);
+  letter-spacing: 1px;
+  border: 1px solid;
+}
+.sc-g { color: var(--green);  border-color: rgba(57,255,126,.2); background: rgba(57,255,126,.05); }
+.sc-c { color: var(--cyan);   border-color: rgba(0,207,255,.2);  background: rgba(0,207,255,.05); }
+.sc-p { color: var(--purple); border-color: rgba(176,106,255,.2);background: rgba(176,106,255,.05); }
+.sc-o { color: var(--orange); border-color: rgba(255,140,66,.2); background: rgba(255,140,66,.05); }
+
+/* ══ SECTION WRAPPER ══ */
+.module { display: none; }
+.module.active { display: block; }
+
+.wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px 80px;
+}
+
+/* ══ SECTION HEADING ══ */
+.sh {
+  display: flex; align-items: flex-start; gap: 20px;
+  margin-bottom: 36px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(0,207,255,.07);
+}
+.sh-num {
+  font-family: var(--mono);
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--muted);
+  flex-shrink: 0;
+  user-select: none;
+}
+.sh-body {}
+.sh-tag {
+  font-family: var(--mono);
+  font-size: .6rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+.sh-title {
+  font-family: var(--display);
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+.sh-desc { font-size: .93rem; color: var(--dim); font-weight: 300; line-height: 1.6; }
+
+/* ══ LAYOUT GRIDS ══ */
+.g2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
+.g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+.g-asymm { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+@media(max-width:900px){ .g2,.g3,.g-asymm { grid-template-columns:1fr; } }
+
+/* ══ CARDS ══ */
+.card {
+  background: var(--bg1);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: var(--r);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .25s, transform .2s;
+}
+.card:hover { transform: translateY(-2px); border-color: rgba(0,207,255,.15); }
+.card::before {
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background: var(--card-accent, transparent);
+  opacity: 0;
+  transition: opacity .3s;
+}
+.card:hover::before { opacity: 1; }
+
+/* accent variants */
+.ca-g  { --card-accent: linear-gradient(90deg,var(--green),transparent); }
+.ca-c  { --card-accent: linear-gradient(90deg,var(--cyan),transparent); }
+.ca-p  { --card-accent: linear-gradient(90deg,var(--purple),transparent); }
+.ca-o  { --card-accent: linear-gradient(90deg,var(--orange),transparent); }
+.ca-r  { --card-accent: linear-gradient(90deg,var(--red),transparent); }
+
+.card-label {
+  font-family: var(--mono);
+  font-size: .58rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 10px;
+}
+.card-title {
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  letter-spacing: -.3px;
+}
+.card-body {
+  font-size: .88rem;
+  color: var(--dim);
+  line-height: 1.7;
+  font-weight: 300;
+}
+.card-body strong { color: var(--text); font-weight: 500; }
+.card-body code {
+  font-family: var(--mono);
+  font-size: .78rem;
+  color: var(--green);
+  background: rgba(57,255,126,.07);
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+/* ══ CODE PANES ══ */
+.code-pane {
+  background: #020912;
+  border: 1px solid rgba(0,207,255,.08);
+  border-radius: var(--r);
+  overflow: hidden;
+  margin: 14px 0;
+  position: relative;
+}
+.code-pane-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(0,207,255,.04);
+  border-bottom: 1px solid rgba(0,207,255,.07);
+}
+.code-pane-name {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.code-pane-lang {
+  font-family: var(--mono);
+  font-size: .58rem;
+  letter-spacing: 2px;
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+.lang-bash   { background: rgba(57,255,126,.1);  color: var(--green);  }
+.lang-python { background: rgba(0,207,255,.1);   color: var(--cyan);   }
+.lang-pwsh   { background: rgba(176,106,255,.1); color: var(--purple); }
+.lang-text   { background: rgba(255,140,66,.1);  color: var(--orange); }
+
+.code-pane pre {
+  padding: 18px 20px;
+  font-family: var(--mono);
+  font-size: .775rem;
+  line-height: 1.85;
+  overflow-x: auto;
+  color: #7a99bb;
+}
+
+/* Syntax highlight token classes */
+.t-kw  { color: #b06aff; font-style: italic; }   /* keyword */
+.t-fn  { color: #39ff7e; }                        /* function/command */
+.t-str { color: #ffe04b; }                        /* string */
+.t-num { color: #ff8c42; }                        /* number */
+.t-cmt { color: #2a4a6a; font-style: italic; }   /* comment */
+.t-var { color: #00cfff; }                        /* variable */
+.t-op  { color: #ff5fa0; }                        /* operator/pipe */
+.t-err { color: #ff3d5a; }                        /* error/danger */
+.t-ok  { color: #39ff7e; }                        /* success */
+.t-dim { color: #2a4a6a; }                        /* dimmed */
+
+/* ══ TOPIC NAV (in-page) ══ */
+.topic-nav {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.topic-btn {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--dim);
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,.05);
+  transition: all .18s;
+}
+.topic-btn:hover, .topic-btn.active { color: var(--bg0); }
+.topic-btn.active.bash   { background: var(--green);  border-color: var(--green); }
+.topic-btn.active.python { background: var(--cyan);   border-color: var(--cyan); }
+.topic-btn.active.pwsh   { background: var(--purple); border-color: var(--purple); }
+.topic-btn.active.secure { background: var(--orange); border-color: var(--orange); }
+
+/* ══ ALERTS ══ */
+.alert {
+  border-radius: var(--r);
+  padding: 13px 18px;
+  margin: 14px 0;
+  font-size: .86rem;
+  line-height: 1.65;
+  font-weight: 300;
+  border-left: 3px solid;
+}
+.alert strong { font-weight: 600; }
+.a-warn { background: rgba(255,140,66,.07); border-color: var(--orange); color: #ffb070; }
+.a-info { background: rgba(0,207,255,.06);  border-color: var(--cyan);   color: #80d8ff; }
+.a-ok   { background: rgba(57,255,126,.06); border-color: var(--green);  color: #80ffb0; }
+.a-err  { background: rgba(255,61,90,.07);  border-color: var(--red);    color: #ff9090; }
+
+/* ══ FEATURE GRID (checklist style) ══ */
+.feature-list { list-style: none; }
+.feature-list li {
+  display: flex; gap: 10px;
+  padding: 9px 0;
+  font-size: .88rem;
+  color: var(--dim);
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  font-weight: 300;
+  line-height: 1.5;
+}
+.feature-list li:last-child { border-bottom: none; }
+.feature-list .fi { flex-shrink: 0; margin-top: 1px; }
+.feature-list strong { color: var(--text); font-weight: 500; }
+.feature-list code {
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--green);
+  background: rgba(57,255,126,.07);
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+/* ══ COMPARISON TABLE ══ */
+.cmp-table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+.cmp-table th {
+  font-family: var(--mono);
+  font-size: .6rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,.04);
+}
+.cmp-table td {
+  font-size: .84rem;
+  font-weight: 300;
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,.03);
+  vertical-align: top;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.cmp-table tr:hover td { background: rgba(255,255,255,.015); }
+.cmp-table td strong { color: var(--text); font-weight: 500; }
+.cmp-table .td-g { color: var(--green); font-family: var(--mono); font-size: .78rem; font-weight: 600; }
+.cmp-table .td-c { color: var(--cyan);   font-family: var(--mono); font-size: .78rem; font-weight: 600; }
+.cmp-table .td-p { color: var(--purple); font-family: var(--mono); font-size: .78rem; font-weight: 600; }
+
+/* ══ FLOW DIAGRAM ══ */
+.flow {
+  display: flex; align-items: center; gap: 0;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.flow-step {
+  flex: 1; min-width: 100px;
+  padding: 16px 12px;
+  text-align: center;
+  background: var(--bg2);
+  border: 1px solid rgba(0,207,255,.08);
+  position: relative;
+}
+.flow-step::after {
+  content: '→';
+  position: absolute;
+  right: -12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: .8rem;
+  z-index: 2;
+}
+.flow-step:last-child::after { display: none; }
+.flow-num {
+  font-family: var(--mono);
+  font-size: .55rem; letter-spacing: 2px;
+  color: var(--muted); margin-bottom: 6px;
+}
+.flow-icon { font-size: 1.3rem; margin-bottom: 5px; }
+.flow-name { font-family: var(--mono); font-size: .65rem; color: var(--cyan); letter-spacing: 1px; margin-bottom: 3px; }
+.flow-desc { font-size: .72rem; color: var(--dim); line-height: 1.3; }
+
+/* ══ BADGE ROW ══ */
+.badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.badge {
+  font-family: var(--mono);
+  font-size: .6rem;
+  letter-spacing: 1px;
+  padding: 3px 9px;
+  border-radius: 2px;
+  border: 1px solid;
+  text-transform: uppercase;
+}
+.bg { color:var(--green);  border-color:rgba(57,255,126,.3);  background:rgba(57,255,126,.07); }
+.bc { color:var(--cyan);   border-color:rgba(0,207,255,.3);   background:rgba(0,207,255,.07); }
+.bp { color:var(--purple); border-color:rgba(176,106,255,.3); background:rgba(176,106,255,.07); }
+.bo { color:var(--orange); border-color:rgba(255,140,66,.3);  background:rgba(255,140,66,.07); }
+.br { color:var(--red);    border-color:rgba(255,61,90,.3);   background:rgba(255,61,90,.07); }
+
+/* ══ VULN DIFF ══ */
+.diff-block {
+  background: #020912;
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: var(--r);
+  overflow: hidden;
+  margin: 14px 0;
+}
+.diff-row {
+  display: flex;
+  font-family: var(--mono);
+  font-size: .75rem;
+  line-height: 1.7;
+}
+.diff-sign {
+  width: 32px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+.diff-code { flex: 1; padding: 3px 12px 3px 0; white-space: pre-wrap; word-break: break-word; }
+.diff-add { background: rgba(57,255,126,.06); }
+.diff-add .diff-sign { color: var(--green); }
+.diff-add .diff-code { color: #80ffb0; }
+.diff-rem { background: rgba(255,61,90,.06); }
+.diff-rem .diff-sign { color: var(--red); }
+.diff-rem .diff-code { color: #ff9090; }
+.diff-cmt { padding: 6px 14px; }
+.diff-cmt .diff-code { color: var(--muted); font-style: italic; }
+
+/* ══ DIVIDER ══ */
+.div-line {
+  height: 1px;
+  background: linear-gradient(90deg,transparent,rgba(0,207,255,.12),transparent);
+  margin: 28px 0;
+}
+
+/* ══ PROGRESS TRACKER ══ */
+.progress-track {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 16px;
+  background: var(--bg2);
+  border-radius: var(--r);
+  border: 1px solid rgba(255,255,255,.04);
+  margin-top: 14px;
+}
+.pt-row { display: flex; align-items: center; gap: 12px; }
+.pt-label {
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--dim);
+  width: 120px;
+  flex-shrink: 0;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.pt-bar { flex: 1; height: 3px; background: var(--muted); border-radius: 2px; overflow: hidden; }
+.pt-fill { height: 100%; border-radius: 2px; }
+.pt-pct { font-family: var(--mono); font-size: .6rem; color: var(--muted); width: 34px; text-align: right; }
+
+/* pill navigation scrollable on mobile */
+@media(max-width:640px){
+  nav { padding: 0 16px; }
+  .nav-pills { overflow-x:auto; scrollbar-width:none; }
+  .nav-pills::-webkit-scrollbar { display:none; }
+  .wrapper { padding: 0 16px 60px; }
+  .hero { padding: 40px 16px 32px; }
+}
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- ══ NAV ══ -->
+<nav class="z1">
+  <div class="nav-brand">SCRIPT<span>/</span>SEC</div>
+  <div class="nav-pills">
+    <button class="nav-pill bash active"   onclick="switchModule('bash',this)">Bash</button>
+    <button class="nav-pill python"        onclick="switchModule('python',this)">Python</button>
+    <button class="nav-pill pwsh"          onclick="switchModule('pwsh',this)">PowerShell</button>
+    <button class="nav-pill secure"        onclick="switchModule('secure',this)">Secure Coding</button>
+    <button class="nav-pill ir"            onclick="switchModule('ir',this)">IR Scripts</button>
+  </div>
+</nav>
+
+<!-- ══ HERO ══ -->
+<div class="hero z1">
+  <div class="hero-eyebrow">// Module 01 — Script Writing Fundamentals //</div>
+  <h1 class="hero-title">
+    <span class="t-bash">Bash.</span>
+    <span class="t-py"> Python.</span>
+    <span class="t-ps"> PowerShell.</span><br>
+    Security Scripting.
+  </h1>
+  <p class="hero-sub">From log parsing and system monitoring to incident response automation. Every script written through a security lens — because the tool you write today is the target tomorrow.</p>
+  <div class="stat-row">
+    <span class="stat-chip sc-g">5 Modules</span>
+    <span class="stat-chip sc-c">30+ Scripts</span>
+    <span class="stat-chip sc-p">Secure Patterns</span>
+    <span class="stat-chip sc-o">IR Playbooks</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     MODULE: BASH
+══════════════════════════════════ -->
+<div class="module active z1" id="mod-bash">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">01</div>
+    <div class="sh-body">
+      <div class="sh-tag">// Shell Scripting //</div>
+      <div class="sh-title" style="color:var(--green)">Bash for Security</div>
+      <div class="sh-desc">The Linux security analyst's first language. Fast, composable, universally available. Master pipelines, process substitution, and real-time log analysis.</div>
+    </div>
+  </div>
+
+  <!-- Fundamentals overview -->
+  <div class="g3" style="margin-bottom:20px">
+    <div class="card ca-g">
+      <div class="card-label">Core Concept</div>
+      <div class="card-title" style="color:var(--green)">Why Bash First</div>
+      <div class="card-body">Available on every Linux/Unix system — no interpreter install required. Ideal for <strong>log triage, rapid IR, cron-based monitoring</strong>, and chaining existing security tools. Speed &gt; elegance.</div>
+      <div class="badge-row">
+        <span class="badge bg">POSIX</span>
+        <span class="badge bg">No Deps</span>
+        <span class="badge bg">Pipeline</span>
+      </div>
+    </div>
+    <div class="card ca-g">
+      <div class="card-label">Key Constructs</div>
+      <div class="card-title" style="color:var(--green)">Security-Relevant Bash</div>
+      <ul class="feature-list">
+        <li><span class="fi">▸</span><div><strong>Pipelines</strong> — <code>grep | awk | sort | uniq</code> for log analysis</div></li>
+        <li><span class="fi">▸</span><div><strong>Process substitution</strong> — <code>diff &lt;(cmd1) &lt;(cmd2)</code> for diffing outputs</div></li>
+        <li><span class="fi">▸</span><div><strong>Here-strings</strong> — pass data without temp files</div></li>
+        <li><span class="fi">▸</span><div><strong>Trap signals</strong> — cleanup on script exit or interrupt</div></li>
+      </ul>
+    </div>
+    <div class="card ca-g">
+      <div class="card-label">Security Use Cases</div>
+      <div class="card-title" style="color:var(--green)">When to Use Bash</div>
+      <ul class="feature-list">
+        <li><span class="fi">🔍</span><div>Real-time log tailing and alerting</div></li>
+        <li><span class="fi">🔐</span><div>SSH brute-force detection from auth.log</div></li>
+        <li><span class="fi">📁</span><div>File integrity baseline and diff</div></li>
+        <li><span class="fi">🌐</span><div>Network sweep and port enumeration</div></li>
+        <li><span class="fi">⏱️</span><div>Cron-scheduled security checks</div></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Script 1: SSH Brute Force Detector -->
+  <div class="card ca-g" style="margin-bottom:16px">
+    <div class="card-label">Script 01 — Log Analysis</div>
+    <div class="card-title" style="color:var(--green)">SSH Brute-Force Detector with Auto-Block</div>
+    <div class="card-body">Parses <code>/var/log/auth.log</code>, counts failed attempts per source IP, sends alerts above threshold, and optionally blocks with <code>iptables</code>. Production-ready with logging and dry-run mode.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">ssh_guard.sh</span>
+        <span class="code-pane-lang lang-bash">BASH</span>
+      </div>
+      <pre><span class="t-cmt">#!/usr/bin/env bash
+# ssh_guard.sh — SSH brute-force detection & response
+# Usage: ./ssh_guard.sh [--dry-run] [--threshold N] [--log FILE]</span>
+
+<span class="t-kw">set</span> -euo pipefail   <span class="t-cmt"># strict mode: exit on error, unset var, pipe fail</span>
+<span class="t-kw">IFS</span>=$'\n\t'         <span class="t-cmt"># safer word splitting</span>
+
+<span class="t-cmt"># ── CONFIG (overridable via args) ─────────────────</span>
+<span class="t-var">AUTH_LOG</span>=<span class="t-str">"/var/log/auth.log"</span>
+<span class="t-var">THRESHOLD</span>=<span class="t-num">10</span>
+<span class="t-var">DRY_RUN</span>=<span class="t-num">false</span>
+<span class="t-var">LOG_FILE</span>=<span class="t-str">"/var/log/ssh_guard.log"</span>
+<span class="t-var">WHITELIST</span>=(<span class="t-str">"127.0.0.1"</span> <span class="t-str">"10.0.0.1"</span>)  <span class="t-cmt"># never block these</span>
+
+<span class="t-cmt"># ── ARG PARSING ───────────────────────────────────</span>
+<span class="t-kw">while</span> [[ $# -gt <span class="t-num">0</span> ]]; <span class="t-kw">do</span>
+  <span class="t-kw">case</span> <span class="t-var">$1</span> <span class="t-kw">in</span>
+    --dry-run)   DRY_RUN=<span class="t-num">true</span> ;;
+    --threshold) THRESHOLD=<span class="t-str">"$2"</span>; shift ;;
+    --log)       AUTH_LOG=<span class="t-str">"$2"</span>; shift ;;
+    *) <span class="t-fn">echo</span> <span class="t-str">"Unknown arg: $1"</span> &gt;&amp;2; exit <span class="t-num">1</span> ;;
+  <span class="t-kw">esac</span>
+  shift
+<span class="t-kw">done</span>
+
+<span class="t-cmt"># ── HELPERS ───────────────────────────────────────</span>
+<span class="t-fn">log</span>() {
+  <span class="t-kw">local</span> level=<span class="t-str">"$1"</span>; shift
+  <span class="t-fn">printf</span> <span class="t-str">'[%s] [%s] %s\n'</span> <span class="t-str">"$(date -u +%FT%TZ)"</span> <span class="t-str">"$level"</span> <span class="t-str">"$*"</span> <span class="t-op">|</span> \
+    <span class="t-fn">tee</span> -a <span class="t-str">"$LOG_FILE"</span>
+}
+
+<span class="t-fn">is_whitelisted</span>() {
+  <span class="t-kw">local</span> ip=<span class="t-str">"$1"</span>
+  <span class="t-kw">for</span> w <span class="t-kw">in</span> <span class="t-str">"${WHITELIST[@]}"</span>; <span class="t-kw">do</span>
+    [[ <span class="t-str">"$ip"</span> == <span class="t-str">"$w"</span> ]] &amp;&amp; <span class="t-kw">return</span> <span class="t-num">0</span>
+  <span class="t-kw">done</span>
+  <span class="t-kw">return</span> <span class="t-num">1</span>
+}
+
+<span class="t-fn">block_ip</span>() {
+  <span class="t-kw">local</span> ip=<span class="t-str">"$1"</span>
+  <span class="t-kw">if</span> <span class="t-fn">is_whitelisted</span> <span class="t-str">"$ip"</span>; <span class="t-kw">then</span>
+    log WARN <span class="t-str">"$ip is whitelisted — skipping block"</span>
+    <span class="t-kw">return</span>
+  <span class="t-kw">fi</span>
+  <span class="t-kw">if</span> [[ <span class="t-var">$DRY_RUN</span> == <span class="t-str">"true"</span> ]]; <span class="t-kw">then</span>
+    log DRY  <span class="t-str">"WOULD block: $ip"</span>
+  <span class="t-kw">else</span>
+    <span class="t-fn">iptables</span> -A INPUT -s <span class="t-str">"$ip"</span> -j DROP
+    log BLOCK <span class="t-str">"Blocked: $ip"</span>
+  <span class="t-kw">fi</span>
+}
+
+<span class="t-cmt"># ── MAIN ──────────────────────────────────────────</span>
+log INFO <span class="t-str">"Starting scan — threshold=$THRESHOLD, log=$AUTH_LOG"</span>
+
+<span class="t-fn">grep</span> <span class="t-str">"Failed password"</span> <span class="t-str">"$AUTH_LOG"</span> \
+  <span class="t-op">|</span> <span class="t-fn">awk</span> <span class="t-str">'{print $(NF-3)}'</span>           \
+  <span class="t-op">|</span> <span class="t-fn">grep</span> -Eo <span class="t-str">'[0-9]{1,3}(\.[0-9]{1,3}){3}'</span> \
+  <span class="t-op">|</span> <span class="t-fn">sort</span> <span class="t-op">|</span> <span class="t-fn">uniq</span> -c <span class="t-op">|</span> <span class="t-fn">sort</span> -rn \
+  <span class="t-op">|</span> <span class="t-kw">while</span> <span class="t-fn">read</span> -r count ip; <span class="t-kw">do</span>
+      <span class="t-kw">if</span> [[ <span class="t-var">$count</span> -ge <span class="t-var">$THRESHOLD</span> ]]; <span class="t-kw">then</span>
+        log ALERT <span class="t-str">"$ip → $count failed attempts"</span>
+        block_ip <span class="t-str">"$ip"</span>
+      <span class="t-kw">fi</span>
+    <span class="t-kw">done</span>
+
+log INFO <span class="t-str">"Scan complete"</span></pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge bg">Strict Mode</span><span class="badge bg">Whitelist</span>
+      <span class="badge bg">Dry-Run</span><span class="badge bg">Timestamped Log</span>
+      <span class="badge bg">Arg Parsing</span>
+    </div>
+  </div>
+
+  <!-- Script 2: File Integrity Monitor -->
+  <div class="card ca-g" style="margin-bottom:16px">
+    <div class="card-label">Script 02 — System Monitoring</div>
+    <div class="card-title" style="color:var(--green)">File Integrity Monitor (Lightweight HIDS)</div>
+    <div class="card-body">Baseline critical system files with SHA-256, then continuously verify them. Alerts on any unauthorized modification — a minimal HIDS.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">fim.sh</span>
+        <span class="code-pane-lang lang-bash">BASH</span>
+      </div>
+      <pre><span class="t-cmt">#!/usr/bin/env bash
+# fim.sh — File Integrity Monitor
+# Usage: ./fim.sh baseline | ./fim.sh check | ./fim.sh watch [interval_secs]</span>
+
+<span class="t-kw">set</span> -euo pipefail
+
+<span class="t-var">WATCH_FILES</span>=(
+  <span class="t-str">"/etc/passwd"</span> <span class="t-str">"/etc/shadow"</span> <span class="t-str">"/etc/sudoers"</span>
+  <span class="t-str">"/etc/ssh/sshd_config"</span> <span class="t-str">"/etc/crontab"</span>
+  <span class="t-str">"/etc/hosts"</span> <span class="t-str">"/etc/ld.so.preload"</span>
+)
+<span class="t-var">BASELINE_DB</span>=<span class="t-str">"/var/lib/fim/baseline.db"</span>
+<span class="t-var">ALERT_LOG</span>=<span class="t-str">"/var/log/fim_alerts.log"</span>
+
+<span class="t-fn">mkdir</span> -p <span class="t-str">"$(dirname "$BASELINE_DB")"</span>
+
+<span class="t-fn">hash_file</span>() {
+  <span class="t-fn">sha256sum</span> <span class="t-str">"$1"</span> <span class="t-num">2</span>&gt;/dev/null <span class="t-op">|</span> <span class="t-fn">cut</span> -d' ' -f1
+}
+
+<span class="t-fn">do_baseline</span>() {
+  <span class="t-fn">echo</span> <span class="t-str">"[$(date -u +%FT%TZ)] Generating baseline..."</span>
+  <span class="t-kw">true</span> &gt; <span class="t-str">"$BASELINE_DB"</span>
+  <span class="t-kw">for</span> f <span class="t-kw">in</span> <span class="t-str">"${WATCH_FILES[@]}"</span>; <span class="t-kw">do</span>
+    <span class="t-kw">if</span> [[ -f <span class="t-str">"$f"</span> ]]; <span class="t-kw">then</span>
+      <span class="t-fn">printf</span> <span class="t-str">'%s  %s\n'</span> <span class="t-str">"$(hash_file "$f")"</span> <span class="t-str">"$f"</span> &gt;&gt; <span class="t-str">"$BASELINE_DB"</span>
+      <span class="t-fn">echo</span> <span class="t-str">"  ✓ $f"</span>
+    <span class="t-kw">else</span>
+      <span class="t-fn">echo</span> <span class="t-str">"  ✗ NOT FOUND: $f"</span>
+    <span class="t-kw">fi</span>
+  <span class="t-kw">done</span>
+  <span class="t-fn">echo</span> <span class="t-str">"Baseline saved → $BASELINE_DB"</span>
+}
+
+<span class="t-fn">do_check</span>() {
+  <span class="t-kw">local</span> violations=<span class="t-num">0</span>
+  <span class="t-kw">while</span> <span class="t-fn">read</span> -r expected_hash filepath; <span class="t-kw">do</span>
+    <span class="t-kw">if</span> [[ ! -f <span class="t-str">"$filepath"</span> ]]; <span class="t-kw">then</span>
+      <span class="t-fn">alert</span> <span class="t-str">"DELETED"</span> <span class="t-str">"$filepath"</span>; (( violations++ ))
+      <span class="t-kw">continue</span>
+    <span class="t-kw">fi</span>
+    <span class="t-kw">local</span> current_hash; current_hash=<span class="t-str">"$(hash_file "$filepath")"</span>
+    <span class="t-kw">if</span> [[ <span class="t-str">"$current_hash"</span> != <span class="t-str">"$expected_hash"</span> ]]; <span class="t-kw">then</span>
+      <span class="t-fn">alert</span> <span class="t-str">"MODIFIED"</span> <span class="t-str">"$filepath"</span>
+      <span class="t-fn">echo</span> <span class="t-str">"    was: $expected_hash"</span>
+      <span class="t-fn">echo</span> <span class="t-str">"    now: $current_hash"</span>
+      (( violations++ ))
+    <span class="t-kw">fi</span>
+  <span class="t-kw">done</span> &lt; <span class="t-str">"$BASELINE_DB"</span>
+  [[ <span class="t-var">$violations</span> -eq <span class="t-num">0</span> ]] &amp;&amp; <span class="t-fn">echo</span> <span class="t-str">"[OK] All files intact"</span>
+  <span class="t-kw">return</span> <span class="t-var">$violations</span>
+}
+
+<span class="t-fn">alert</span>() {
+  <span class="t-kw">local</span> msg; msg=<span class="t-str">"[$(date -u +%FT%TZ)] [ALERT] $1: $2"</span>
+  <span class="t-fn">echo</span> <span class="t-str">"$msg"</span> <span class="t-op">|</span> <span class="t-fn">tee</span> -a <span class="t-str">"$ALERT_LOG"</span>
+  <span class="t-cmt"># Hook: send to SIEM, Slack webhook, email, etc.</span>
+}
+
+<span class="t-kw">case</span> <span class="t-str">"${1:-check}"</span> <span class="t-kw">in</span>
+  baseline) do_baseline ;;
+  check)    do_check ;;
+  watch)
+    interval=<span class="t-str">"${2:-300}"</span>
+    <span class="t-fn">echo</span> <span class="t-str">"Watching every ${interval}s — Ctrl+C to stop"</span>
+    <span class="t-kw">while true</span>; <span class="t-kw">do</span> do_check; sleep <span class="t-str">"$interval"</span>; <span class="t-kw">done</span> ;;
+  *) <span class="t-fn">echo</span> <span class="t-str">"Usage: $0 baseline|check|watch [interval]"</span>; exit <span class="t-num">1</span> ;;
+<span class="t-kw">esac</span></pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge bg">SHA-256</span><span class="badge bg">Baseline Mode</span>
+      <span class="badge bg">Watch Loop</span><span class="badge bg">Alert Hook</span>
+    </div>
+  </div>
+
+  <!-- Script 3: Network Sweep -->
+  <div class="card ca-g">
+    <div class="card-label">Script 03 — Network Monitoring</div>
+    <div class="card-title" style="color:var(--green)">Network Asset Discovery & Change Detector</div>
+    <div class="card-body">Pings a subnet, grabs hostnames, baselines the inventory, and alerts when new or missing hosts appear — lightweight asset tracking without nmap.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">net_sweep.sh</span>
+        <span class="code-pane-lang lang-bash">BASH</span>
+      </div>
+      <pre><span class="t-cmt">#!/usr/bin/env bash
+# net_sweep.sh — Subnet sweep & change detection
+# Usage: ./net_sweep.sh 192.168.1 [--baseline]</span>
+
+<span class="t-kw">set</span> -euo pipefail
+<span class="t-var">SUBNET</span>=<span class="t-str">"${1:-192.168.1}"</span>
+<span class="t-var">BASELINE</span>=<span class="t-str">"/tmp/net_baseline_${SUBNET//./_}.txt"</span>
+<span class="t-var">CURRENT</span>=$(mktemp)
+<span class="t-kw">trap</span> <span class="t-str">'rm -f "$CURRENT"'</span> EXIT
+
+<span class="t-fn">sweep</span>() {
+  <span class="t-fn">echo</span> <span class="t-str">"[*] Sweeping $SUBNET.0/24..."</span>
+  <span class="t-kw">for</span> i <span class="t-kw">in</span> $(<span class="t-fn">seq</span> <span class="t-num">1</span> <span class="t-num">254</span>); <span class="t-kw">do</span>
+    {
+      ip=<span class="t-str">"$SUBNET.$i"</span>
+      <span class="t-kw">if</span> <span class="t-fn">ping</span> -c1 -W1 <span class="t-str">"$ip"</span> &gt;/dev/null <span class="t-num">2</span>&gt;&amp;<span class="t-num">1</span>; <span class="t-kw">then</span>
+        host_name=$(<span class="t-fn">dig</span> +short -x <span class="t-str">"$ip"</span> <span class="t-num">2</span>&gt;/dev/null <span class="t-op">||</span> <span class="t-fn">echo</span> <span class="t-str">"unknown"</span>)
+        <span class="t-fn">printf</span> <span class="t-str">'%s %s\n'</span> <span class="t-str">"$ip"</span> <span class="t-str">"${host_name%.}"</span> &gt;&gt; <span class="t-str">"$CURRENT"</span>
+      <span class="t-kw">fi</span>
+    } &amp;  <span class="t-cmt"># parallel pings</span>
+  <span class="t-kw">done</span>
+  wait  <span class="t-cmt"># wait for all background jobs</span>
+  <span class="t-fn">sort</span> -t. -k4 -n <span class="t-str">"$CURRENT"</span>
+}
+
+<span class="t-kw">if</span> [[ <span class="t-str">"${2:-}"</span> == <span class="t-str">"--baseline"</span> ]]; <span class="t-kw">then</span>
+  sweep &gt; <span class="t-str">"$BASELINE"</span>
+  <span class="t-fn">echo</span> <span class="t-str">"[✓] Baseline saved: $BASELINE ($(wc -l &lt;"$BASELINE") hosts)"</span>
+<span class="t-kw">elif</span> [[ -f <span class="t-str">"$BASELINE"</span> ]]; <span class="t-kw">then</span>
+  sweep &gt; <span class="t-str">"$CURRENT"</span>
+  <span class="t-fn">echo</span> <span class="t-str">"=== NEW HOSTS ==="</span>
+  <span class="t-fn">comm</span> -13 &lt;(<span class="t-fn">sort</span> <span class="t-str">"$BASELINE"</span>) &lt;(<span class="t-fn">sort</span> <span class="t-str">"$CURRENT"</span>) <span class="t-op">|</span> <span class="t-fn">grep</span> . <span class="t-op">||</span> <span class="t-fn">echo</span> <span class="t-str">"None"</span>
+  <span class="t-fn">echo</span> <span class="t-str">"=== MISSING HOSTS ==="</span>
+  <span class="t-fn">comm</span> -23 &lt;(<span class="t-fn">sort</span> <span class="t-str">"$BASELINE"</span>) &lt;(<span class="t-fn">sort</span> <span class="t-str">"$CURRENT"</span>) <span class="t-op">|</span> <span class="t-fn">grep</span> . <span class="t-op">||</span> <span class="t-fn">echo</span> <span class="t-str">"None"</span>
+<span class="t-kw">else</span>
+  <span class="t-fn">echo</span> <span class="t-str">"No baseline — run with --baseline first"</span>
+<span class="t-kw">fi</span></pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge bg">Parallel</span><span class="badge bg">Trap Cleanup</span><span class="badge bg">Change Detection</span>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     MODULE: PYTHON
+══════════════════════════════════ -->
+<div class="module z1" id="mod-python">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">02</div>
+    <div class="sh-body">
+      <div class="sh-tag">// Python Security Scripting //</div>
+      <div class="sh-title" style="color:var(--cyan)">Python for Security</div>
+      <div class="sh-desc">The analyst's powerhouse. Rich stdlib, battle-tested libraries — scapy, requests, cryptography — and readable code that scales from 20-line scripts to full frameworks.</div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:20px">
+    <div class="card ca-c">
+      <div class="card-label">Key Libraries</div>
+      <div class="card-title" style="color:var(--cyan)">Security Toolkit</div>
+      <ul class="feature-list">
+        <li><span class="fi">▸</span><div><code>scapy</code> — packet crafting & sniffing</div></li>
+        <li><span class="fi">▸</span><div><code>requests</code> — HTTP client for API interactions</div></li>
+        <li><span class="fi">▸</span><div><code>cryptography</code> — encryption & hashing primitives</div></li>
+        <li><span class="fi">▸</span><div><code>paramiko</code> — SSH automation</div></li>
+        <li><span class="fi">▸</span><div><code>yara-python</code> — malware classification</div></li>
+        <li><span class="fi">▸</span><div><code>volatility3</code> — memory forensics API</div></li>
+      </ul>
+    </div>
+    <div class="card ca-c">
+      <div class="card-label">Architecture Pattern</div>
+      <div class="card-title" style="color:var(--cyan)">Security Script Structure</div>
+      <div class="code-pane">
+        <div class="code-pane-bar">
+          <span class="code-pane-name">template.py</span>
+          <span class="code-pane-lang lang-python">PYTHON</span>
+        </div>
+        <pre><span class="t-cmt">#!/usr/bin/env python3</span>
+<span class="t-kw">import</span> argparse, logging, sys
+<span class="t-kw">from</span> pathlib <span class="t-kw">import</span> Path
+
+<span class="t-fn">logging</span>.basicConfig(
+  level=logging.INFO,
+  format=<span class="t-str">'%(asctime)s [%(levelname)s] %(message)s'</span>,
+  datefmt=<span class="t-str">'%Y-%m-%dT%H:%M:%SZ'</span>
+)
+log = logging.getLogger(__name__)
+
+<span class="t-kw">def</span> <span class="t-fn">parse_args</span>():
+  p = argparse.ArgumentParser()
+  p.add_argument(<span class="t-str">'--target'</span>, required=<span class="t-num">True</span>)
+  p.add_argument(<span class="t-str">'--dry-run'</span>, action=<span class="t-str">'store_true'</span>)
+  <span class="t-kw">return</span> p.parse_args()
+
+<span class="t-kw">def</span> <span class="t-fn">main</span>():
+  args = parse_args()
+  <span class="t-cmt"># your logic here</span>
+
+<span class="t-kw">if</span> __name__ == <span class="t-str">'__main__'</span>:
+  sys.exit(main())</pre>
+      </div>
+    </div>
+    <div class="card ca-c">
+      <div class="card-label">When Python Wins</div>
+      <div class="card-title" style="color:var(--cyan)">Choose Python For</div>
+      <ul class="feature-list">
+        <li><span class="fi">🔬</span><div>Complex log parsing with regex/parsing libs</div></li>
+        <li><span class="fi">🌐</span><div>API calls to SIEM, VirusTotal, Shodan</div></li>
+        <li><span class="fi">🔐</span><div>Cryptographic operations (never roll your own)</div></li>
+        <li><span class="fi">📦</span><div>Building reusable security tool frameworks</div></li>
+        <li><span class="fi">🧪</span><div>Malware analysis automation pipelines</div></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Python Script 1: Log Analyzer -->
+  <div class="card ca-c" style="margin-bottom:16px">
+    <div class="card-label">Script 04 — SIEM-style Log Analyzer</div>
+    <div class="card-title" style="color:var(--cyan)">Multi-Source Log Parser with IOC Detection</div>
+    <div class="card-body">Parses multiple log formats, extracts IOCs (IPs, domains, hashes), correlates against a threat intel feed, and produces a structured JSON report.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">log_analyzer.py</span>
+        <span class="code-pane-lang lang-python">PYTHON</span>
+      </div>
+      <pre><span class="t-cmt">#!/usr/bin/env python3
+"""
+log_analyzer.py — Multi-format log parser with IOC detection
+Supports: auth.log, nginx access.log, syslog, JSON logs
+"""</span>
+
+<span class="t-kw">import</span> re, json, sys, argparse, logging
+<span class="t-kw">from</span> pathlib    <span class="t-kw">import</span> Path
+<span class="t-kw">from</span> datetime   <span class="t-kw">import</span> datetime, timezone
+<span class="t-kw">from</span> collections <span class="t-kw">import</span> defaultdict, Counter
+<span class="t-kw">from</span> ipaddress  <span class="t-kw">import</span> ip_address, ip_network, AddressValueError
+
+log = logging.getLogger(__name__)
+
+<span class="t-cmt"># ── PATTERNS ──────────────────────────────────────────</span>
+PATTERNS = {
+  <span class="t-str">'ipv4'</span>:   <span class="t-fn">re</span>.compile(
+    <span class="t-str">r'\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b'</span>
+  ),
+  <span class="t-str">'domain'</span>: <span class="t-fn">re</span>.compile(
+    <span class="t-str">r'\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b'</span>
+  ),
+  <span class="t-str">'hash_sha256'</span>: <span class="t-fn">re</span>.compile(<span class="t-str">r'\b[0-9a-fA-F]{64}\b'</span>),
+  <span class="t-str">'hash_md5'</span>:    <span class="t-fn">re</span>.compile(<span class="t-str">r'\b[0-9a-fA-F]{32}\b'</span>),
+}
+
+<span class="t-cmt"># Private ranges — skip these from IOC reports</span>
+PRIVATE_RANGES = [
+  ip_network(<span class="t-str">'10.0.0.0/8'</span>), ip_network(<span class="t-str">'172.16.0.0/12'</span>),
+  ip_network(<span class="t-str">'192.168.0.0/16'</span>), ip_network(<span class="t-str">'127.0.0.0/8'</span>),
+]
+
+<span class="t-kw">class</span> <span class="t-fn">LogAnalyzer</span>:
+  <span class="t-kw">def</span> <span class="t-fn">__init__</span>(self, threat_feed: <span class="t-fn">set</span> = None):
+    self.events      = []
+    self.iocs        = defaultdict(<span class="t-fn">set</span>)
+    self.ip_counts   = Counter()
+    self.threat_hits = []
+    self.threat_feed = threat_feed <span class="t-kw">or</span> <span class="t-fn">set</span>()
+
+  <span class="t-kw">def</span> <span class="t-fn">is_private</span>(self, ip_str: str) -> bool:
+    <span class="t-kw">try</span>:
+      addr = ip_address(ip_str)
+      <span class="t-kw">return</span> <span class="t-fn">any</span>(addr <span class="t-kw">in</span> net <span class="t-kw">for</span> net <span class="t-kw">in</span> PRIVATE_RANGES)
+    <span class="t-kw">except</span> AddressValueError:
+      <span class="t-kw">return</span> False
+
+  <span class="t-kw">def</span> <span class="t-fn">extract_iocs</span>(self, line: str) -> <span class="t-fn">dict</span>:
+    found = {}
+    <span class="t-kw">for</span> ioc_type, pattern <span class="t-kw">in</span> PATTERNS.items():
+      matches = pattern.findall(line)
+      <span class="t-kw">if</span> ioc_type == <span class="t-str">'ipv4'</span>:
+        matches = [m <span class="t-kw">for</span> m <span class="t-kw">in</span> matches <span class="t-kw">if not</span> self.is_private(m)]
+      <span class="t-kw">if</span> matches:
+        found[ioc_type] = <span class="t-fn">list</span>(<span class="t-fn">set</span>(matches))
+        self.iocs[ioc_type].update(matches)
+    <span class="t-kw">return</span> found
+
+  <span class="t-kw">def</span> <span class="t-fn">analyze_line</span>(self, line: str, source: str) -> None:
+    iocs = self.extract_iocs(line)
+    <span class="t-kw">if not</span> iocs:
+      <span class="t-kw">return</span>
+    event = {<span class="t-str">'source'</span>: source, <span class="t-str">'raw'</span>: line.strip()[:300], <span class="t-str">'iocs'</span>: iocs}
+
+    <span class="t-cmt"># Threat intel correlation</span>
+    <span class="t-kw">for</span> ip <span class="t-kw">in</span> iocs.get(<span class="t-str">'ipv4'</span>, []):
+      self.ip_counts[ip] += <span class="t-num">1</span>
+      <span class="t-kw">if</span> ip <span class="t-kw">in</span> self.threat_feed:
+        event[<span class="t-str">'threat_match'</span>] = ip
+        self.threat_hits.append(event)
+        log.warning(<span class="t-str">f"[THREAT MATCH] {ip} in threat feed — line: {line[:80]}"</span>)
+    self.events.append(event)
+
+  <span class="t-kw">def</span> <span class="t-fn">process_file</span>(self, path: Path) -> None:
+    log.info(<span class="t-str">f"Processing: {path}"</span>)
+    <span class="t-kw">with</span> <span class="t-fn">open</span>(path, <span class="t-str">'r'</span>, errors=<span class="t-str">'replace'</span>) <span class="t-kw">as</span> fh:
+      <span class="t-kw">for</span> line <span class="t-kw">in</span> fh:
+        self.analyze_line(line, str(path))
+
+  <span class="t-kw">def</span> <span class="t-fn">report</span>(self) -> <span class="t-fn">dict</span>:
+    <span class="t-kw">return</span> {
+      <span class="t-str">'generated_at'</span>: datetime.now(timezone.utc).isoformat(),
+      <span class="t-str">'summary'</span>: {
+        <span class="t-str">'total_events'</span>:   <span class="t-fn">len</span>(self.events),
+        <span class="t-str">'unique_ips'</span>:      <span class="t-fn">len</span>(self.iocs.get(<span class="t-str">'ipv4'</span>, [])),
+        <span class="t-str">'threat_hits'</span>:    <span class="t-fn">len</span>(self.threat_hits),
+      },
+      <span class="t-str">'top_ips'</span>:      self.ip_counts.most_common(<span class="t-num">20</span>),
+      <span class="t-str">'threat_events'</span>: self.threat_hits,
+      <span class="t-str">'all_iocs'</span>:      {k: <span class="t-fn">list</span>(v) <span class="t-kw">for</span> k, v <span class="t-kw">in</span> self.iocs.items()},
+    }
+
+<span class="t-kw">def</span> <span class="t-fn">main</span>():
+  p = argparse.ArgumentParser(description=<span class="t-str">'Log analyzer with IOC detection'</span>)
+  p.add_argument(<span class="t-str">'logs'</span>, nargs=<span class="t-str">'+'</span>, help=<span class="t-str">'Log files to analyze'</span>)
+  p.add_argument(<span class="t-str">'--feed'</span>, help=<span class="t-str">'Threat feed file (one IP per line)'</span>)
+  p.add_argument(<span class="t-str">'--out'</span>, default=<span class="t-str">'report.json'</span>)
+  args = p.parse_args()
+
+  feed = <span class="t-fn">set</span>()
+  <span class="t-kw">if</span> args.feed:
+    feed = {ln.strip() <span class="t-kw">for</span> ln <span class="t-kw">in</span> Path(args.feed).read_text().splitlines() <span class="t-kw">if</span> ln.strip()}
+
+  analyzer = LogAnalyzer(threat_feed=feed)
+  <span class="t-kw">for</span> log_path <span class="t-kw">in</span> args.logs:
+    analyzer.process_file(Path(log_path))
+
+  report = analyzer.report()
+  Path(args.out).write_text(json.dumps(report, indent=<span class="t-num">2</span>))
+  log.info(<span class="t-str">f"Report → {args.out} | Threats: {report['summary']['threat_hits']}"</span>)
+
+<span class="t-kw">if</span> __name__ == <span class="t-str">'__main__'</span>:
+  logging.basicConfig(level=logging.INFO)
+  main()</pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge bc">IOC Extraction</span><span class="badge bc">Threat Intel</span>
+      <span class="badge bc">Private IP Filter</span><span class="badge bc">JSON Report</span><span class="badge bc">Multi-Source</span>
+    </div>
+  </div>
+
+  <!-- Python Script 2: VirusTotal Enrichment -->
+  <div class="card ca-c">
+    <div class="card-label">Script 05 — Threat Intel Enrichment</div>
+    <div class="card-title" style="color:var(--cyan)">VirusTotal API — Bulk IOC Enrichment</div>
+    <div class="card-body">Takes a list of file hashes, IPs, or domains, queries the VirusTotal API with rate limiting, and enriches each with verdicts, detection ratios, and tags.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">vt_enrich.py</span>
+        <span class="code-pane-lang lang-python">PYTHON</span>
+      </div>
+      <pre><span class="t-cmt">#!/usr/bin/env python3
+"""
+vt_enrich.py — VirusTotal bulk IOC enrichment
+Rate-limited, retry-safe, outputs enriched JSON
+"""</span>
+<span class="t-kw">import</span> time, json, sys, os
+<span class="t-kw">import</span> requests
+<span class="t-kw">from</span> pathlib <span class="t-kw">import</span> Path
+
+<span class="t-var">VT_BASE</span>    = <span class="t-str">"https://www.virustotal.com/api/v3"</span>
+<span class="t-var">API_KEY</span>    = os.environ.get(<span class="t-str">"VT_API_KEY"</span>, <span class="t-str">""</span>)  <span class="t-cmt"># NEVER hardcode keys</span>
+<span class="t-var">RATE_LIMIT</span> = <span class="t-num">4</span>   <span class="t-cmt"># free tier: 4 req/min</span>
+<span class="t-var">DELAY</span>      = <span class="t-num">60</span> / RATE_LIMIT
+
+<span class="t-kw">def</span> <span class="t-fn">vt_lookup</span>(ioc: str, ioc_type: str) -> <span class="t-fn">dict</span>:
+  <span class="t-cmt">"""Query VT for hash|ip|domain with retry on 429."""</span>
+  endpoints = {
+    <span class="t-str">'hash'</span>:   <span class="t-str">f"/files/{ioc}"</span>,
+    <span class="t-str">'ip'</span>:     <span class="t-str">f"/ip_addresses/{ioc}"</span>,
+    <span class="t-str">'domain'</span>: <span class="t-str">f"/domains/{ioc}"</span>,
+  }
+  url = VT_BASE + endpoints[ioc_type]
+  headers = {<span class="t-str">"x-apikey"</span>: API_KEY}
+
+  <span class="t-kw">for</span> attempt <span class="t-kw">in</span> <span class="t-fn">range</span>(<span class="t-num">3</span>):
+    resp = requests.get(url, headers=headers, timeout=<span class="t-num">15</span>)
+    <span class="t-kw">if</span> resp.status_code == <span class="t-num">200</span>:
+      data = resp.json().get(<span class="t-str">"data"</span>, {}).get(<span class="t-str">"attributes"</span>, {})
+      stats = data.get(<span class="t-str">"last_analysis_stats"</span>, {})
+      <span class="t-kw">return</span> {
+        <span class="t-str">"ioc"</span>:      ioc,
+        <span class="t-str">"type"</span>:     ioc_type,
+        <span class="t-str">"malicious"</span>:  stats.get(<span class="t-str">"malicious"</span>, <span class="t-num">0</span>),
+        <span class="t-str">"suspicious"</span>: stats.get(<span class="t-str">"suspicious"</span>, <span class="t-num">0</span>),
+        <span class="t-str">"undetected"</span>: stats.get(<span class="t-str">"undetected"</span>, <span class="t-num">0</span>),
+        <span class="t-str">"tags"</span>:     data.get(<span class="t-str">"tags"</span>, []),
+        <span class="t-str">"verdict"</span>:  <span class="t-str">"MALICIOUS"</span> <span class="t-kw">if</span> stats.get(<span class="t-str">"malicious"</span>, <span class="t-num">0</span>) &gt; <span class="t-num">2</span> <span class="t-kw">else</span> <span class="t-str">"CLEAN"</span>,
+      }
+    <span class="t-kw">elif</span> resp.status_code == <span class="t-num">429</span>:
+      wait = <span class="t-num">60</span> * (attempt + <span class="t-num">1</span>)
+      <span class="t-fn">print</span>(<span class="t-str">f"Rate limited — waiting {wait}s..."</span>, file=sys.stderr)
+      time.sleep(wait)
+    <span class="t-kw">elif</span> resp.status_code == <span class="t-num">404</span>:
+      <span class="t-kw">return</span> {<span class="t-str">"ioc"</span>: ioc, <span class="t-str">"verdict"</span>: <span class="t-str">"NOT_FOUND"</span>}
+    <span class="t-kw">else</span>:
+      <span class="t-kw">return</span> {<span class="t-str">"ioc"</span>: ioc, <span class="t-str">"error"</span>: resp.status_code}
+  <span class="t-kw">return</span> {<span class="t-str">"ioc"</span>: ioc, <span class="t-str">"error"</span>: <span class="t-str">"max_retries"</span>}
+
+<span class="t-kw">def</span> <span class="t-fn">enrich_list</span>(iocs: list, ioc_type: str) -> list:
+  results = []
+  <span class="t-kw">for</span> i, ioc <span class="t-kw">in</span> <span class="t-fn">enumerate</span>(iocs):
+    <span class="t-fn">print</span>(<span class="t-str">f"[{i+1}/{len(iocs)}] Querying: {ioc}"</span>)
+    result = vt_lookup(ioc.strip(), ioc_type)
+    results.append(result)
+    <span class="t-kw">if</span> result.get(<span class="t-str">"verdict"</span>) == <span class="t-str">"MALICIOUS"</span>:
+      <span class="t-fn">print</span>(<span class="t-str">f"  ⚠ MALICIOUS — {result['malicious']} engines"</span>)
+    time.sleep(DELAY)  <span class="t-cmt"># respect rate limit</span>
+  <span class="t-kw">return</span> results
+
+<span class="t-kw">if</span> __name__ == <span class="t-str">"__main__"</span>:
+  <span class="t-kw">if not</span> API_KEY:
+    sys.exit(<span class="t-str">"Set VT_API_KEY environment variable"</span>)
+  <span class="t-cmt"># Example: pipe hashes from file</span>
+  hashes = sys.stdin.read().splitlines()
+  results = enrich_list(hashes, <span class="t-str">"hash"</span>)
+  Path(<span class="t-str">"vt_results.json"</span>).write_text(json.dumps(results, indent=<span class="t-num">2</span>))</pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge bc">No Hardcoded Keys</span><span class="badge bc">Rate Limiting</span>
+      <span class="badge bc">Retry Logic</span><span class="badge bc">Bulk Processing</span>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     MODULE: POWERSHELL
+══════════════════════════════════ -->
+<div class="module z1" id="mod-pwsh">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">03</div>
+    <div class="sh-body">
+      <div class="sh-tag">// Windows Security Scripting //</div>
+      <div class="sh-title" style="color:var(--purple)">PowerShell for Security</div>
+      <div class="sh-desc">Deep Windows integration, .NET object pipeline, and native access to WMI, registry, event logs, and Active Directory. The defender's Windows operating language.</div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:16px">
+    <div class="card ca-p">
+      <div class="card-label">Why PowerShell</div>
+      <div class="card-title" style="color:var(--purple)">Native Windows Power</div>
+      <ul class="feature-list">
+        <li><span class="fi">▸</span><div><strong>Object pipeline</strong> — pass .NET objects, not text strings</div></li>
+        <li><span class="fi">▸</span><div><strong>WMI/CIM</strong> — query system state deeply</div></li>
+        <li><span class="fi">▸</span><div><strong>Event logs</strong> — native Get-WinEvent access</div></li>
+        <li><span class="fi">▸</span><div><strong>Active Directory</strong> — enumerate users, groups, GPOs</div></li>
+        <li><span class="fi">▸</span><div><strong>Constrained Language Mode</strong> — understand attacker bypasses</div></li>
+      </ul>
+    </div>
+    <div class="card ca-p">
+      <div class="card-label">Security Context</div>
+      <div class="card-title" style="color:var(--purple)">Living-Off-the-Land</div>
+      <div class="card-body">Attackers abuse PowerShell extensively (<strong>LOLBins</strong>). Understanding it as a defender means knowing <em>what normal looks like</em> — so you can detect the abnormal. Enable <strong>Script Block Logging</strong> and <strong>Module Logging</strong> in production environments.</div>
+      <div class="code-pane">
+        <div class="code-pane-bar"><span class="code-pane-name">Enable Logging</span><span class="code-pane-lang lang-pwsh">PWSH</span></div>
+        <pre><span class="t-cmt"># Enable PowerShell Script Block Logging (GPO or registry)</span>
+<span class="t-var">$path</span> = <span class="t-str">'HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging'</span>
+<span class="t-fn">New-Item</span> -Path <span class="t-var">$path</span> -Force
+<span class="t-fn">Set-ItemProperty</span> -Path <span class="t-var">$path</span> -Name <span class="t-str">"EnableScriptBlockLogging"</span> -Value <span class="t-num">1</span>
+<span class="t-cmt"># Logs to: Event ID 4104 — Microsoft-Windows-PowerShell/Operational</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- PowerShell Script 1 -->
+  <div class="card ca-p" style="margin-bottom:16px">
+    <div class="card-label">Script 06 — Threat Hunting</div>
+    <div class="card-title" style="color:var(--purple)">Windows Threat Hunting Script</div>
+    <div class="card-body">Comprehensive host triage — unsigned processes, suspicious parent-child chains, persistence mechanisms, network connections. Outputs structured report.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">Invoke-ThreatHunt.ps1</span>
+        <span class="code-pane-lang lang-pwsh">PWSH</span>
+      </div>
+      <pre><span class="t-cmt">#Requires -RunAsAdministrator
+<# .SYNOPSIS
+   Invoke-ThreatHunt.ps1 — Host triage & threat hunting
+   Run from an elevated PowerShell session in a sandbox
+#></span>
+
+<span class="t-fn">Set-StrictMode</span> -Version Latest
+<span class="t-var">$ErrorActionPreference</span> = <span class="t-str">'Continue'</span>
+<span class="t-var">$report</span> = [ordered]@{ Timestamp = (Get-Date -Format o); Findings = @() }
+
+<span class="t-kw">function</span> <span class="t-fn">Add-Finding</span>([string]<span class="t-var">$Category</span>, [string]<span class="t-var">$Severity</span>, [string]<span class="t-var">$Detail</span>, <span class="t-var">$Data</span>) {
+  <span class="t-var">$report</span>.Findings += [PSCustomObject]@{
+    Category = <span class="t-var">$Category</span>; Severity = <span class="t-var">$Severity</span>
+    Detail   = <span class="t-var">$Detail</span>;   Data     = <span class="t-var">$Data</span>
+  }
+  <span class="t-var">$color</span> = <span class="t-kw">switch</span> (<span class="t-var">$Severity</span>) { <span class="t-str">'HIGH'</span> {<span class="t-str">'Red'</span>} <span class="t-str">'MED'</span> {<span class="t-str">'Yellow'</span>} <span class="t-kw">default</span> {<span class="t-str">'Cyan'</span>}}
+  <span class="t-fn">Write-Host</span> <span class="t-str">"[$Severity] $Category → $Detail"</span> -ForegroundColor <span class="t-var">$color</span>
+}
+
+<span class="t-cmt"># ── 1. UNSIGNED PROCESSES ─────────────────────────</span>
+<span class="t-fn">Write-Host</span> <span class="t-str">"`n[*] Checking process signatures..."</span>
+<span class="t-fn">Get-Process</span> | <span class="t-fn">ForEach-Object</span> {
+  <span class="t-kw">try</span> {
+    <span class="t-var">$path</span> = <span class="t-var">$_</span>.MainModule.FileName
+    <span class="t-kw">if</span> (<span class="t-var">$null</span> -eq <span class="t-var">$path</span>) { <span class="t-kw">return</span> }
+    <span class="t-var">$sig</span> = <span class="t-fn">Get-AuthenticodeSignature</span> <span class="t-var">$path</span>
+    <span class="t-kw">if</span> (<span class="t-var">$sig</span>.Status -ne <span class="t-str">'Valid'</span>) {
+      Add-Finding <span class="t-str">'UNSIGNED_PROC'</span> <span class="t-str">'HIGH'</span> <span class="t-str">"$($_.Name) PID=$($_.Id)"</span> @{
+        Path      = <span class="t-var">$path</span>
+        SigStatus = <span class="t-var">$sig</span>.Status
+        MD5       = (<span class="t-fn">Get-FileHash</span> <span class="t-var">$path</span> -Algorithm MD5).Hash
+      }
+    }
+  } <span class="t-kw">catch</span> { <span class="t-cmt"># Access denied for system procs — expected</span> }
+}
+
+<span class="t-cmt"># ── 2. SUSPICIOUS PARENT-CHILD CHAINS ────────────</span>
+<span class="t-fn">Write-Host</span> <span class="t-str">"`n[*] Checking process lineage..."</span>
+<span class="t-var">$suspicious</span> = @(
+  @{Parent=<span class="t-str">'winword.exe'</span>;  Child=<span class="t-str">'cmd.exe'</span>}
+  @{Parent=<span class="t-str">'winword.exe'</span>;  Child=<span class="t-str">'powershell.exe'</span>}
+  @{Parent=<span class="t-str">'excel.exe'</span>;    Child=<span class="t-str">'wscript.exe'</span>}
+  @{Parent=<span class="t-str">'outlook.exe'</span>;  Child=<span class="t-str">'cmd.exe'</span>}
+  @{Parent=<span class="t-str">'explorer.exe'</span>; Child=<span class="t-str">'svchost.exe'</span>}
+)
+<span class="t-var">$procs</span> = <span class="t-fn">Get-CimInstance</span> Win32_Process | <span class="t-fn">Select-Object</span> Name, ProcessId, ParentProcessId, CommandLine
+<span class="t-kw">foreach</span> (<span class="t-var">$rule</span> <span class="t-kw">in</span> <span class="t-var">$suspicious</span>) {
+  <span class="t-var">$parents</span> = <span class="t-var">$procs</span> | <span class="t-fn">Where-Object</span> { <span class="t-var">$_</span>.Name -eq <span class="t-var">$rule</span>.Parent }
+  <span class="t-kw">foreach</span> (<span class="t-var">$parent</span> <span class="t-kw">in</span> <span class="t-var">$parents</span>) {
+    <span class="t-var">$children</span> = <span class="t-var">$procs</span> | <span class="t-fn">Where-Object</span> { <span class="t-var">$_</span>.ParentProcessId -eq <span class="t-var">$parent</span>.ProcessId -and <span class="t-var">$_</span>.Name -eq <span class="t-var">$rule</span>.Child }
+    <span class="t-kw">foreach</span> (<span class="t-var">$child</span> <span class="t-kw">in</span> <span class="t-var">$children</span>) {
+      Add-Finding <span class="t-str">'PROC_CHAIN'</span> <span class="t-str">'HIGH'</span> <span class="t-str">"$($rule.Parent) → $($rule.Child)"</span> <span class="t-var">$child</span>.CommandLine
+    }
+  }
+}
+
+<span class="t-cmt"># ── 3. PERSISTENCE — REGISTRY RUN KEYS ───────────</span>
+<span class="t-fn">Write-Host</span> <span class="t-str">"`n[*] Checking persistence mechanisms..."</span>
+<span class="t-var">$runKeys</span> = @(
+  <span class="t-str">'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'</span>
+  <span class="t-str">'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run'</span>
+  <span class="t-str">'HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce'</span>
+)
+<span class="t-kw">foreach</span> (<span class="t-var">$key</span> <span class="t-kw">in</span> <span class="t-var">$runKeys</span>) {
+  <span class="t-kw">if</span> (<span class="t-fn">Test-Path</span> <span class="t-var">$key</span>) {
+    <span class="t-fn">Get-ItemProperty</span> <span class="t-var">$key</span> | <span class="t-fn">Select-Object</span> -Property * -ExcludeProperty PS* |
+      <span class="t-fn">Get-Member</span> -MemberType NoteProperty | <span class="t-fn">ForEach-Object</span> {
+        <span class="t-var">$val</span> = (<span class="t-fn">Get-ItemProperty</span> <span class="t-var">$key</span>).(<span class="t-var">$_</span>.Name)
+        Add-Finding <span class="t-str">'PERSISTENCE'</span> <span class="t-str">'MED'</span> <span class="t-str">"RunKey: $($_.Name)"</span> @{Key=<span class="t-var">$key</span>; Value=<span class="t-var">$val</span>}
+      }
+  }
+}
+
+<span class="t-cmt"># ── 4. ACTIVE NETWORK CONNECTIONS ─────────────────</span>
+<span class="t-fn">Write-Host</span> <span class="t-str">"`n[*] Checking network connections..."</span>
+<span class="t-fn">Get-NetTCPConnection</span> -State Established | <span class="t-fn">ForEach-Object</span> {
+  <span class="t-var">$conn</span> = <span class="t-var">$_</span>
+  <span class="t-var">$proc</span> = <span class="t-fn">Get-Process</span> -Id <span class="t-var">$conn</span>.OwningProcess -ErrorAction SilentlyContinue
+  <span class="t-cmt"># Flag non-browser processes with outbound connections</span>
+  <span class="t-kw">if</span> (<span class="t-var">$proc</span>.Name -notin @(<span class="t-str">'chrome'</span>,<span class="t-str">'firefox'</span>,<span class="t-str">'msedge'</span>,<span class="t-str">'svchost'</span>)) {
+    Add-Finding <span class="t-str">'NETWORK'</span> <span class="t-str">'MED'</span> <span class="t-str">"$($proc.Name) → $($conn.RemoteAddress):$($conn.RemotePort)"</span> $null
+  }
+}
+
+<span class="t-cmt"># ── OUTPUT ────────────────────────────────────────</span>
+<span class="t-var">$outFile</span> = <span class="t-str">"ThreatHunt_$(Get-Date -Format yyyyMMdd_HHmmss).json"</span>
+<span class="t-var">$report</span> | <span class="t-fn">ConvertTo-Json</span> -Depth <span class="t-num">5</span> | <span class="t-fn">Out-File</span> <span class="t-var">$outFile</span>
+<span class="t-fn">Write-Host</span> <span class="t-str">"`n[✓] Report: $outFile | Findings: $($report.Findings.Count)"</span> -ForegroundColor Green</pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge bp">Process Chains</span><span class="badge bp">Sig Check</span>
+      <span class="badge bp">Registry</span><span class="badge bp">Network</span><span class="badge bp">JSON Report</span>
+    </div>
+  </div>
+
+  <!-- PowerShell Script 2: Event Log Hunt -->
+  <div class="card ca-p">
+    <div class="card-label">Script 07 — Event Log Analysis</div>
+    <div class="card-title" style="color:var(--purple)">Security Event Log Hunter</div>
+    <div class="card-body">Query Windows Security, System, and PowerShell event logs for high-value forensic event IDs — logon failures, privilege use, service installs, and lateral movement indicators.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">Get-SecurityEvents.ps1</span>
+        <span class="code-pane-lang lang-pwsh">PWSH</span>
+      </div>
+      <pre><span class="t-cmt"># Get-SecurityEvents.ps1 — Query high-value Windows event IDs</span>
+<span class="t-kw">param</span>(
+  [DateTime]<span class="t-var">$StartTime</span> = (Get-Date).AddHours(-<span class="t-num">24</span>),
+  [string]  <span class="t-var">$ComputerName</span> = <span class="t-var">$env:COMPUTERNAME</span>
+)
+
+<span class="t-cmt"># High-value Security Event IDs</span>
+<span class="t-var">$eventMap</span> = [ordered]@{
+  <span class="t-num">4624</span> = <span class="t-str">"Successful Logon"</span>
+  <span class="t-num">4625</span> = <span class="t-str">"Failed Logon"</span>
+  <span class="t-num">4648</span> = <span class="t-str">"Logon with Explicit Credentials"</span>
+  <span class="t-num">4672</span> = <span class="t-str">"Special Privileges Assigned"</span>
+  <span class="t-num">4698</span> = <span class="t-str">"Scheduled Task Created"</span>
+  <span class="t-num">4702</span> = <span class="t-str">"Scheduled Task Modified"</span>
+  <span class="t-num">4720</span> = <span class="t-str">"User Account Created"</span>
+  <span class="t-num">4732</span> = <span class="t-str">"Member Added to Security Group"</span>
+  <span class="t-num">7045</span> = <span class="t-str">"New Service Installed"</span>
+  <span class="t-num">4104</span> = <span class="t-str">"PowerShell Script Block"</span>
+}
+
+<span class="t-var">$filterXml</span> = @"
+&lt;QueryList&gt;
+  &lt;Query Id=<span class="t-str">"0"</span>&gt;
+    &lt;Select Path=<span class="t-str">"Security"</span>&gt;
+      *[System[EventID=4624 or EventID=4625 or EventID=4648 or
+               EventID=4672 or EventID=4698 or EventID=4720 or
+               EventID=4732]
+        and System[TimeCreated[@SystemTime &gt;= '<span class="t-var">$($StartTime.ToUniversalTime().ToString("o"))</span>']]]
+    &lt;/Select&gt;
+    &lt;Select Path=<span class="t-str">"System"</span>&gt;
+      *[System[EventID=7045]]
+    &lt;/Select&gt;
+    &lt;Select Path=<span class="t-str">"Microsoft-Windows-PowerShell/Operational"</span>&gt;
+      *[System[EventID=4104]]
+    &lt;/Select&gt;
+  &lt;/Query&gt;
+&lt;/QueryList&gt;
+<span class="t-str">"@</span>
+
+<span class="t-fn">Write-Host</span> <span class="t-str">"[*] Querying events since $StartTime on $ComputerName"</span>
+
+<span class="t-fn">Get-WinEvent</span> -FilterXml <span class="t-var">$filterXml</span> -ComputerName <span class="t-var">$ComputerName</span> -ErrorAction SilentlyContinue |
+  <span class="t-fn">Sort-Object</span> TimeCreated |
+  <span class="t-fn">Select-Object</span> TimeCreated, Id,
+    @{n=<span class="t-str">'Description'</span>;e={<span class="t-var">$eventMap</span>[[int]<span class="t-var">$_</span>.Id] ?? <span class="t-str">"Event $($_.Id)"</span>}},
+    Message |
+  <span class="t-fn">Format-Table</span> -AutoSize |
+  <span class="t-fn">Out-Host</span>
+
+<span class="t-cmt"># Highlight failed logon bursts (brute force indicator)</span>
+<span class="t-var">$failedLogons</span> = <span class="t-fn">Get-WinEvent</span> -FilterXml <span class="t-var">$filterXml</span> -ErrorAction SilentlyContinue |
+  <span class="t-fn">Where-Object</span> { <span class="t-var">$_</span>.Id -eq <span class="t-num">4625</span> }
+<span class="t-kw">if</span> (<span class="t-var">$failedLogons</span>.Count -gt <span class="t-num">20</span>) {
+  <span class="t-fn">Write-Host</span> <span class="t-str">"[!] ALERT: $($failedLogons.Count) failed logons in last 24h"</span> -ForegroundColor Red
+}</pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge bp">Event IDs</span><span class="badge bp">XPath Filter</span>
+      <span class="badge bp">Brute Force Alert</span><span class="badge bp">Remote Query</span>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     MODULE: SECURE CODING
+══════════════════════════════════ -->
+<div class="module z1" id="mod-secure">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">04</div>
+    <div class="sh-body">
+      <div class="sh-tag">// Secure Coding Patterns //</div>
+      <div class="sh-title" style="color:var(--orange)">Scripting Vulnerabilities & Defenses</div>
+      <div class="sh-desc">Security scripts that are themselves insecure are ironic liabilities. Every pattern here is a real-world vulnerability class found in production security tooling.</div>
+    </div>
+  </div>
+
+  <div class="alert a-warn">
+    <strong>Reality:</strong> Many production security scripts contain injection flaws, hardcoded credentials, race conditions, and TOCTOU bugs — creating attack surface within the blue team's own toolchain.
+  </div>
+
+  <!-- Vuln 1: Command Injection -->
+  <div class="card ca-o" style="margin-bottom:16px">
+    <div class="card-label">Vulnerability 01</div>
+    <div class="card-title" style="color:var(--orange)">Command Injection — Bash & Python</div>
+    <div class="card-body">The most common scripting flaw. Unsanitized user input passed to a shell command or <code>os.system()</code> allows arbitrary command execution.</div>
+    <div class="diff-block">
+      <div class="diff-row diff-cmt"><div class="diff-sign"></div><div class="diff-code">/* BASH — Command Injection */</div></div>
+      <div class="diff-row diff-rem"><div class="diff-sign">−</div><div class="diff-code">user_input="$1"
+eval "ls $user_input"            # INJECTABLE: ; rm -rf /</div></div>
+      <div class="diff-row diff-rem"><div class="diff-sign">−</div><div class="diff-code">grep "$user_input" /var/log/auth.log  # INJECTABLE</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">user_input="$1"
+# Validate: only allow alphanumeric + dash + underscore
+if [[ ! "$user_input" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  echo "Invalid input" >&2; exit 1
+fi
+ls -- "$user_input"              # SAFE: quoted + validated</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">grep -F "$user_input" /var/log/auth.log  # SAFE: -F = literal</div></div>
+      <div class="diff-row diff-cmt"><div class="diff-sign"></div><div class="diff-code">/* PYTHON — shell=True danger */</div></div>
+      <div class="diff-row diff-rem"><div class="diff-sign">−</div><div class="diff-code">import subprocess
+subprocess.run(f"ping {user_ip}", shell=True)   # INJECTABLE</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">import subprocess, ipaddress
+ipaddress.ip_address(user_ip)    # validate first — raises ValueError if bad
+subprocess.run(["ping", "-c1", user_ip])        # SAFE: list, no shell</div></div>
+    </div>
+    <div class="badge-row">
+      <span class="badge bo">CWE-78</span><span class="badge bo">OS Command Injection</span><span class="badge bg">Input Validation</span><span class="badge bg">No shell=True</span>
+    </div>
+  </div>
+
+  <!-- Vuln 2: Hardcoded Credentials -->
+  <div class="card ca-o" style="margin-bottom:16px">
+    <div class="card-label">Vulnerability 02</div>
+    <div class="card-title" style="color:var(--orange)">Credential Handling — All Languages</div>
+    <div class="card-body">Hardcoded credentials in scripts committed to version control is one of the most common and costly security mistakes. Use environment variables or vaults.</div>
+    <div class="diff-block">
+      <div class="diff-row diff-rem"><div class="diff-sign">−</div><div class="diff-code">PASSWORD = "admin123"          # Python: hardcoded</div></div>
+      <div class="diff-row diff-rem"><div class="diff-sign">−</div><div class="diff-code">$apiKey = "sk-abc123..."       # PowerShell: hardcoded</div></div>
+      <div class="diff-row diff-rem"><div class="diff-sign">−</div><div class="diff-code">curl -u admin:password http:// # Bash: in command history</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">PASSWORD = os.environ["DB_PASSWORD"]          # Python: env var</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">$apiKey = $env:API_KEY                        # PowerShell: env</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">password=$(vault kv get -field=pw secret/db)  # Bash: vault</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code"># Python: use keyring or secrets managers
+import keyring
+password = keyring.get_password("myapp", "dbuser")</div></div>
+      <div class="diff-row diff-cmt"><div class="diff-sign"></div><div class="diff-code">/* Also: add .env and *.sh to .gitignore; pre-commit hooks to scan */</div></div>
+    </div>
+    <div class="badge-row">
+      <span class="badge bo">CWE-798</span><span class="badge bg">Env Vars</span><span class="badge bg">Vault</span><span class="badge bg">Keyring</span>
+    </div>
+  </div>
+
+  <!-- Vuln 3: TOCTOU -->
+  <div class="card ca-o" style="margin-bottom:16px">
+    <div class="card-label">Vulnerability 03</div>
+    <div class="card-title" style="color:var(--orange)">TOCTOU — Time-of-Check / Time-of-Use</div>
+    <div class="card-body">A race condition where the state of a resource changes between checking it and using it. Common in temp file handling and file permission checks.</div>
+    <div class="diff-block">
+      <div class="diff-row diff-cmt"><div class="diff-sign"></div><div class="diff-code">/* BASH: temp file TOCTOU */</div></div>
+      <div class="diff-row diff-rem"><div class="diff-sign">−</div><div class="diff-code">TMPFILE="/tmp/myscript_$$"       # predictable path — symlink attack
+echo "data" > $TMPFILE</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">TMPFILE=$(mktemp)                # random, secure temp file
+trap 'rm -f "$TMPFILE"' EXIT    # always clean up via trap
+echo "data" > "$TMPFILE"</div></div>
+      <div class="diff-row diff-cmt"><div class="diff-sign"></div><div class="diff-code">/* PYTHON: file existence check TOCTOU */</div></div>
+      <div class="diff-row diff-rem"><div class="diff-sign">−</div><div class="diff-code">if os.path.exists(path):        # file may disappear before open()
+    with open(path) as f: data = f.read()</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">try:                            # EAFP: Easier to Ask Forgiveness
+    with open(path) as f: data = f.read()
+except FileNotFoundError:
+    handle_missing()</div></div>
+      <div class="diff-row diff-cmt"><div class="diff-sign"></div><div class="diff-code">/* PYTHON: atomic write to avoid partial reads */</div></div>
+      <div class="diff-row diff-add"><div class="diff-sign">+</div><div class="diff-code">import tempfile, os
+with tempfile.NamedTemporaryFile('w', dir=target_dir, delete=False) as f:
+    f.write(data)
+    tmp = f.name
+os.replace(tmp, target_path)    # atomic rename — readers see complete file</div></div>
+    </div>
+    <div class="badge-row">
+      <span class="badge bo">CWE-367</span><span class="badge bg">mktemp</span><span class="badge bg">Atomic Write</span><span class="badge bg">EAFP</span>
+    </div>
+  </div>
+
+  <!-- Secure Coding Cheatsheet -->
+  <div class="card ca-o">
+    <div class="card-label">Reference — Security Checklist</div>
+    <div class="card-title" style="color:var(--orange)">Secure Scripting Checklist</div>
+    <table class="cmp-table">
+      <tr>
+        <th>CHECK</th><th>BASH</th><th>PYTHON</th><th>PWSH</th>
+      </tr>
+      <tr>
+        <td><strong>Strict mode</strong></td>
+        <td class="td-g">set -euo pipefail</td>
+        <td class="td-c">No equivalent (use linting)</td>
+        <td class="td-p">Set-StrictMode -Version Latest</td>
+      </tr>
+      <tr>
+        <td><strong>Input validation</strong></td>
+        <td class="td-g">[[ $x =~ ^[a-z]+$ ]]</td>
+        <td class="td-c">re.fullmatch() or schema validation</td>
+        <td class="td-p">ValidatePattern attribute</td>
+      </tr>
+      <tr>
+        <td><strong>No shell=True</strong></td>
+        <td class="td-g">Quote all variables</td>
+        <td class="td-c">subprocess list args only</td>
+        <td class="td-p">Avoid Invoke-Expression</td>
+      </tr>
+      <tr>
+        <td><strong>Credentials</strong></td>
+        <td class="td-g">Env vars / vault</td>
+        <td class="td-c">os.environ / keyring</td>
+        <td class="td-p">$env: / SecureString</td>
+      </tr>
+      <tr>
+        <td><strong>Temp files</strong></td>
+        <td class="td-g">mktemp + trap cleanup</td>
+        <td class="td-c">tempfile.NamedTemporaryFile</td>
+        <td class="td-p">New-TemporaryFile</td>
+      </tr>
+      <tr>
+        <td><strong>Least privilege</strong></td>
+        <td class="td-g">Drop root ASAP</td>
+        <td class="td-c">Run as non-root service</td>
+        <td class="td-p">Use #Requires -RunAsAdmin sparingly</td>
+      </tr>
+      <tr>
+        <td><strong>Logging</strong></td>
+        <td class="td-g">Structured with timestamps</td>
+        <td class="td-c">logging module, not print()</td>
+        <td class="td-p">Write-EventLog or structured</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     MODULE: INCIDENT RESPONSE
+══════════════════════════════════ -->
+<div class="module z1" id="mod-ir">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">05</div>
+    <div class="sh-body">
+      <div class="sh-tag">// Incident Response Automation //</div>
+      <div class="sh-title" style="color:var(--red)">IR Scripts & Playbooks</div>
+      <div class="sh-desc">Time is the enemy during an incident. These scripts automate the first 15 minutes of triage — evidence preservation, network isolation decisions, and timeline reconstruction.</div>
+    </div>
+  </div>
+
+  <div class="flow" style="margin-bottom:28px">
+    <div class="flow-step">
+      <div class="flow-num">01</div><div class="flow-icon">🚨</div>
+      <div class="flow-name">DETECT</div><div class="flow-desc">Alert fires or IOC identified</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">02</div><div class="flow-icon">🔒</div>
+      <div class="flow-name">CONTAIN</div><div class="flow-desc">Isolate host / block network</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">03</div><div class="flow-icon">📸</div>
+      <div class="flow-name">PRESERVE</div><div class="flow-desc">Memory dump, disk image, logs</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">04</div><div class="flow-icon">🔬</div>
+      <div class="flow-name">ANALYZE</div><div class="flow-desc">Triage, IOC extraction, timeline</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">05</div><div class="flow-icon">🧹</div>
+      <div class="flow-name">ERADICATE</div><div class="flow-desc">Remove malware, patch vuln</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">06</div><div class="flow-icon">📋</div>
+      <div class="flow-name">REPORT</div><div class="flow-desc">Timeline, PIR, lessons learned</div>
+    </div>
+  </div>
+
+  <!-- IR Script 1: Linux Triage -->
+  <div class="card ca-r" style="margin-bottom:16px">
+    <div class="card-label">Script 08 — Linux IR Triage</div>
+    <div class="card-title" style="color:var(--red)">Linux First-Responder Collection Script</div>
+    <div class="card-body">Collects volatile evidence in order of volatility (memory state → running processes → network → disk artifacts). Designed to run within the first 5 minutes of a Linux incident.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">linux_triage.sh</span>
+        <span class="code-pane-lang lang-bash">BASH</span>
+      </div>
+      <pre><span class="t-cmt">#!/usr/bin/env bash
+# linux_triage.sh — First-responder evidence collection
+# MUST run as root. Collects volatile evidence before shutdown.
+# Output: timestamped tarball of all artifacts</span>
+
+<span class="t-kw">set</span> -euo pipefail
+[[ <span class="t-var">$EUID</span> -ne <span class="t-num">0</span> ]] &amp;&amp; { <span class="t-fn">echo</span> <span class="t-str">"Run as root"</span>; exit <span class="t-num">1</span>; }
+
+<span class="t-var">TS</span>=$(<span class="t-fn">date</span> -u +%Y%m%d_%H%M%SZ)
+<span class="t-var">HOST</span>=$(<span class="t-fn">hostname</span> -s)
+<span class="t-var">OUT</span>=<span class="t-str">"/tmp/triage_${HOST}_${TS}"</span>
+<span class="t-fn">mkdir</span> -p <span class="t-str">"$OUT"</span>/{volatile,network,persist,logs}
+<span class="t-kw">trap</span> <span class="t-str">"tar -czf ${OUT}.tar.gz -C /tmp triage_${HOST}_${TS} && rm -rf '$OUT' && echo '[✓] Package: ${OUT}.tar.gz'"</span> EXIT
+
+<span class="t-fn">log</span>() { <span class="t-fn">echo</span> <span class="t-str">"[$(date -u +%T)] $*"</span>; }
+<span class="t-fn">cap</span>() {
+  <span class="t-cmt"># cap label command → saves output to file, handles errors</span>
+  <span class="t-kw">local</span> label=<span class="t-str">"$1"</span>; shift
+  log <span class="t-str">"Collecting: $label"</span>
+  <span class="t-str">"$@"</span> &gt; <span class="t-str">"$OUT/${label}.txt"</span> <span class="t-num">2</span>&gt;&amp;<span class="t-num">1</span> <span class="t-op">||</span> <span class="t-fn">echo</span> <span class="t-str">"[WARN] $label failed"</span>
+}
+
+<span class="t-cmt"># ── PHASE 1: MOST VOLATILE FIRST ─────────────────</span>
+log <span class="t-str">"=== PHASE 1: VOLATILE DATA ==="</span>
+cap volatile/date           date -u
+cap volatile/uptime         uptime
+cap volatile/who            who -a
+cap volatile/last           last -n 50
+cap volatile/w              w
+cap volatile/ps_full        ps auxef --forest
+cap volatile/proc_environ   bash -c <span class="t-str">'for p in /proc/[0-9]*/environ; do
+  pid=$(echo $p | cut -d/ -f3)
+  echo "=== PID $pid ==="; cat "$p" 2>/dev/null | tr "\0" "\n"; done'</span>
+cap volatile/lsof           lsof -nP
+cap volatile/fds            bash -c <span class="t-str">'ls -la /proc/[0-9]*/fd 2>/dev/null | grep "(deleted)"'</span>
+
+<span class="t-cmt"># ── PHASE 2: NETWORK ──────────────────────────────</span>
+log <span class="t-str">"=== PHASE 2: NETWORK STATE ==="</span>
+cap network/ss              ss -tnpua
+cap network/arp             arp -an
+cap network/routes          ip route show
+cap network/iptables        iptables -L -n -v
+cap network/dns_resolv      cat /etc/resolv.conf
+cap network/hosts           cat /etc/hosts
+
+<span class="t-cmt"># ── PHASE 3: PERSISTENCE ──────────────────────────</span>
+log <span class="t-str">"=== PHASE 3: PERSISTENCE MECHANISMS ==="</span>
+cap persist/crontabs        bash -c <span class="t-str">'for u in $(cut -d: -f1 /etc/passwd); do
+  echo "=== $u ==="; crontab -u "$u" -l 2>/dev/null; done'</span>
+cap persist/cron_dirs       find /etc/cron* /var/spool/cron -type f <span class="t-num">2</span>&gt;/dev/null
+cap persist/services        systemctl list-units --type=service --all
+cap persist/timers          systemctl list-timers --all
+cap persist/startup_files   cat /etc/rc.local /etc/rc*.d/*.sh <span class="t-num">2</span>&gt;/dev/null
+cap persist/ssh_keys        find /home /root -name <span class="t-str">"authorized_keys"</span> -exec cat {} + <span class="t-num">2</span>&gt;/dev/null
+cap persist/ld_preload      cat /etc/ld.so.preload <span class="t-num">2</span>&gt;/dev/null
+cap persist/suid_files      find / -perm -4000 -type f <span class="t-num">2</span>&gt;/dev/null
+
+<span class="t-cmt"># ── PHASE 4: LOG COLLECTION ───────────────────────</span>
+log <span class="t-str">"=== PHASE 4: LOG SNAPSHOTS ==="</span>
+<span class="t-kw">for</span> logfile <span class="t-kw">in</span> auth.log syslog kern.log bash_history; <span class="t-kw">do</span>
+  <span class="t-kw">for</span> candidate <span class="t-kw">in</span> /var/log/<span class="t-var">$logfile</span> /home/*/.bash_history /root/.bash_history; <span class="t-kw">do</span>
+    [[ -f <span class="t-str">"$candidate"</span> ]] &amp;&amp; <span class="t-fn">cp</span> <span class="t-str">"$candidate"</span> <span class="t-str">"$OUT/logs/"</span> <span class="t-num">2</span>&gt;/dev/null <span class="t-op">||</span> <span class="t-kw">true</span>
+  <span class="t-kw">done</span>
+<span class="t-kw">done</span>
+
+<span class="t-cmt"># ── PHASE 5: SYSTEM FINGERPRINT ──────────────────</span>
+cap volatile/uname          uname -a
+cap volatile/os_release     cat /etc/os-release
+cap volatile/installed_pkgs dpkg -l <span class="t-num">2</span>&gt;/dev/null <span class="t-op">||</span> rpm -qa <span class="t-num">2</span>&gt;/dev/null
+cap volatile/recent_files   find / -newer /tmp -not -path <span class="t-str">"/proc/*"</span> -not -path <span class="t-str">"/sys/*"</span> \
+                              -mmin -<span class="t-num">60</span> -type f <span class="t-num">2</span>&gt;/dev/null
+
+log <span class="t-str">"Collection complete — packaging..."</span></pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge br">Volatility Order</span><span class="badge br">Evidence Preservation</span>
+      <span class="badge br">Auto-Package</span><span class="badge bg">Error-Safe</span>
+    </div>
+  </div>
+
+  <!-- IR Script 2: Windows IR PowerShell -->
+  <div class="card ca-r">
+    <div class="card-label">Script 09 — Windows IR Containment</div>
+    <div class="card-title" style="color:var(--red)">Windows Network Isolation + Evidence Collection</div>
+    <div class="card-body">Blocks all non-essential outbound traffic via Windows Firewall, preserves volatile state, and prepares a handoff package for forensic analysis — all reversible.</div>
+    <div class="code-pane">
+      <div class="code-pane-bar">
+        <span class="code-pane-name">Invoke-IRContain.ps1</span>
+        <span class="code-pane-lang lang-pwsh">PWSH</span>
+      </div>
+      <pre><span class="t-cmt">#Requires -RunAsAdministrator
+<#
+.SYNOPSIS  Windows IR containment + volatile evidence collection
+.NOTES     -WhatIf supported for dry-run; -Undo reverses isolation
+#></span>
+<span class="t-kw">param</span>([switch]<span class="t-var">$Undo</span>, [switch]<span class="t-var">$SkipIsolation</span>)
+
+<span class="t-var">$TS</span>      = Get-Date -Format <span class="t-str">"yyyyMMdd_HHmmssZ"</span>
+<span class="t-var">$Host_</span>   = <span class="t-var">$env:COMPUTERNAME</span>
+<span class="t-var">$OutDir</span>  = <span class="t-str">"C:\IR_${Host_}_${TS}"</span>
+<span class="t-fn">New-Item</span> -Path <span class="t-var">$OutDir</span> -ItemType Directory -Force | Out-Null
+
+<span class="t-kw">function</span> <span class="t-fn">Save</span>(<span class="t-var">$name</span>, <span class="t-var">$data</span>) {
+  <span class="t-var">$data</span> | <span class="t-fn">Out-File</span> -FilePath <span class="t-str">"$OutDir\$name.txt"</span> -Encoding UTF8
+}
+
+<span class="t-cmt"># ── VOLATILE EVIDENCE ─────────────────────────────</span>
+<span class="t-fn">Write-Host</span> <span class="t-str">"[*] Collecting volatile state..."</span> -ForegroundColor Cyan
+
+Save <span class="t-str">"01_datetime"</span>    (Get-Date -Format o)
+Save <span class="t-str">"02_processes"</span>   (<span class="t-fn">Get-CimInstance</span> Win32_Process |
+  <span class="t-fn">Select-Object</span> Name, ProcessId, ParentProcessId,
+    CommandLine, ExecutablePath,
+    @{n=<span class="t-str">'StartTime'</span>;e={<span class="t-var">$_</span>.CreationDate}} |
+  <span class="t-fn">Format-List</span>)
+Save <span class="t-str">"03_network"</span>     (<span class="t-fn">Get-NetTCPConnection</span> | <span class="t-fn">Select-Object</span> LocalAddress, LocalPort,
+  RemoteAddress, RemotePort, State, OwningProcess | <span class="t-fn">Format-Table</span>)
+Save <span class="t-str">"04_loggedon"</span>    (<span class="t-fn">Get-CimInstance</span> Win32_LoggedOnUser)
+Save <span class="t-str">"05_services"</span>    (<span class="t-fn">Get-Service</span> | <span class="t-fn">Where-Object</span> {<span class="t-var">$_</span>.Status -eq <span class="t-str">'Running'</span>})
+Save <span class="t-str">"06_startup"</span>     (<span class="t-fn">Get-CimInstance</span> Win32_StartupCommand)
+Save <span class="t-str">"07_shares"</span>      (<span class="t-fn">Get-SmbShare</span>)
+Save <span class="t-str">"08_scheduled"</span>   (<span class="t-fn">Get-ScheduledTask</span> | <span class="t-fn">Where-Object</span> State -ne <span class="t-str">'Disabled'</span>)
+Save <span class="t-str">"09_run_keys"</span>    (<span class="t-fn">Get-ItemProperty</span> <span class="t-str">'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'</span>)
+Save <span class="t-str">"10_prefetch"</span>    (<span class="t-fn">Get-ChildItem</span> C:\Windows\Prefetch | <span class="t-fn">Sort-Object</span> LastWriteTime -Descending | <span class="t-fn">Select-Object</span> -First <span class="t-num">50</span>)
+
+<span class="t-cmt"># ── NETWORK ISOLATION ─────────────────────────────</span>
+<span class="t-kw">if</span> (<span class="t-op">-not</span> <span class="t-var">$SkipIsolation</span> -and <span class="t-op">-not</span> <span class="t-var">$Undo</span>) {
+  <span class="t-fn">Write-Host</span> <span class="t-str">"[!] Isolating host — blocking all outbound except RDP (3389)"</span> -ForegroundColor Red
+  <span class="t-cmt"># Block all outbound</span>
+  <span class="t-fn">New-NetFirewallRule</span> -DisplayName <span class="t-str">"IR_BLOCK_OUTBOUND"</span> `
+    -Direction Outbound -Action Block -Profile Any `
+    -Description <span class="t-str">"IR containment $(Get-Date -Format o)"</span> | Out-Null
+  <span class="t-cmt"># Allow RDP so responders can still connect</span>
+  <span class="t-fn">New-NetFirewallRule</span> -DisplayName <span class="t-str">"IR_ALLOW_RDP"</span> `
+    -Direction Outbound -Action Allow -Protocol TCP -RemotePort <span class="t-num">3389</span> | Out-Null
+  <span class="t-fn">Write-Host</span> <span class="t-str">"[✓] Host isolated. Run with -Undo to restore."</span> -ForegroundColor Yellow
+}
+
+<span class="t-kw">if</span> (<span class="t-var">$Undo</span>) {
+  <span class="t-fn">Remove-NetFirewallRule</span> -DisplayName <span class="t-str">"IR_BLOCK_OUTBOUND"</span> -ErrorAction SilentlyContinue
+  <span class="t-fn">Remove-NetFirewallRule</span> -DisplayName <span class="t-str">"IR_ALLOW_RDP"</span>    -ErrorAction SilentlyContinue
+  <span class="t-fn">Write-Host</span> <span class="t-str">"[✓] Isolation rules removed — network restored"</span> -ForegroundColor Green
+  exit <span class="t-num">0</span>
+}
+
+<span class="t-cmt"># ── PACKAGE ───────────────────────────────────────</span>
+<span class="t-fn">Compress-Archive</span> -Path <span class="t-var">$OutDir</span> -DestinationPath <span class="t-str">"${OutDir}.zip"</span>
+<span class="t-fn">Write-Host</span> <span class="t-str">"[✓] Evidence package: ${OutDir}.zip"</span> -ForegroundColor Green
+(<span class="t-fn">Get-FileHash</span> <span class="t-str">"${OutDir}.zip"</span>).Hash | <span class="t-fn">Out-File</span> <span class="t-str">"${OutDir}.zip.sha256"</span>
+<span class="t-fn">Write-Host</span> <span class="t-str">"[✓] Hash: $(Get-Content "${OutDir}.zip.sha256")"</span></pre>
+    </div>
+    <div class="badge-row">
+      <span class="badge br">Network Isolation</span><span class="badge br">Reversible</span>
+      <span class="badge br">Volatile First</span><span class="badge bg">SHA-256 Hash</span><span class="badge bp">-WhatIf Safe</span>
+    </div>
+  </div>
+
+  <div class="alert a-ok" style="margin-top:20px">
+    <strong>Next Module →</strong> Malware Fundamentals: taxonomy, infection chains, persistence mechanisms, and C2 communication models. Load the main platform for the full curriculum path.
+  </div>
+
+</div>
+</div>
+
+<script>
+function switchModule(id, btn) {
+  document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+  document.getElementById('mod-' + id).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

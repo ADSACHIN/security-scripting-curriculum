@@ -1,0 +1,2200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DETECT//04 — Detection Engineering & Defense</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Martian+Mono:wght@300;400;600;700;800&family=Unbounded:wght@300;700;900&family=Instrument+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap');
+
+:root {
+  --void:   #080a08;
+  --deep:   #0d110d;
+  --panel:  #111811;
+  --surface:#162016;
+  --lift:   #1c281c;
+
+  --amber:  #ffb700;
+  --amber2: #e09900;
+  --amber3: #c07800;
+  --lime:   #7dff4f;
+  --lime2:  #5acc30;
+  --red:    #ff3322;
+  --red2:   #cc1100;
+  --cyan:   #22ddff;
+  --cyan2:  #00aabb;
+  --white:  #e8f0e8;
+  --dim:    #3a503a;
+  --muted:  #1e2e1e;
+  --rule:   #192419;
+
+  --mono: 'Martian Mono', monospace;
+  --display: 'Unbounded', sans-serif;
+  --body: 'Instrument Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--void);
+  color: var(--white);
+  font-family: var(--body);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: crosshair;
+}
+
+/* ── CIRCUIT BOARD BACKGROUND ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,183,0,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,183,0,.03) 1px, transparent 1px),
+    linear-gradient(rgba(255,183,0,.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,183,0,.015) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+  pointer-events: none; z-index: 0;
+}
+
+/* Amber glow at top */
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0; height: 300px;
+  background: radial-gradient(ellipse 800px 300px at 50% 0%, rgba(255,183,0,.07) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+.z1 { position: relative; z-index: 1; }
+
+/* ── NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 200;
+  height: 52px;
+  display: flex; align-items: stretch;
+  background: rgba(8,10,8,.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,183,0,.15);
+  overflow-x: auto; scrollbar-width: none;
+}
+nav::-webkit-scrollbar { display: none; }
+
+.nav-logo {
+  display: flex; align-items: center;
+  padding: 0 20px;
+  border-right: 1px solid var(--rule);
+  flex-shrink: 0;
+  gap: 10px;
+}
+.nav-logo-mark {
+  width: 28px; height: 28px;
+  background: var(--amber);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.nav-logo-mark::after {
+  content: '04';
+  font-family: var(--mono);
+  font-size: .45rem;
+  font-weight: 800;
+  color: var(--void);
+  letter-spacing: 1px;
+}
+.nav-logo-text {
+  font-family: var(--display);
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--amber);
+}
+
+.ntabs { display: flex; }
+.ntab {
+  font-family: var(--mono);
+  font-size: .55rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 0 16px;
+  cursor: pointer;
+  color: var(--dim);
+  background: none; border: none;
+  border-right: 1px solid var(--rule);
+  white-space: nowrap;
+  transition: all .2s;
+}
+.ntab:hover { color: var(--amber); background: rgba(255,183,0,.04); }
+.ntab.active { color: var(--void); background: var(--amber); }
+
+/* ── HERO ── */
+.hero {
+  padding: 0 0 0;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255,183,0,.12);
+  min-height: 220px;
+  display: flex; align-items: stretch;
+}
+
+.hero-left {
+  flex: 1;
+  padding: 52px 48px;
+  border-right: 1px solid rgba(255,183,0,.1);
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: .55rem;
+  letter-spacing: 5px;
+  color: rgba(255,183,0,.5);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.hero-eyebrow::before {
+  content: '';
+  display: block; width: 40px; height: 1px;
+  background: rgba(255,183,0,.3);
+}
+
+.hero-h1 {
+  font-family: var(--display);
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  font-weight: 900;
+  line-height: .9;
+  letter-spacing: -2px;
+  margin-bottom: 20px;
+}
+.hero-h1 .hl { color: var(--amber); }
+.hero-h1 .dim { color: var(--dim); }
+
+.hero-desc {
+  font-size: .95rem;
+  color: var(--dim);
+  font-weight: 300;
+  line-height: 1.75;
+  max-width: 500px;
+  margin-bottom: 24px;
+}
+
+.hero-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.htag {
+  font-family: var(--mono);
+  font-size: .52rem;
+  letter-spacing: 2px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255,183,0,.2);
+  color: rgba(255,183,0,.6);
+  border-radius: 1px;
+  text-transform: uppercase;
+}
+
+.hero-right {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex; flex-direction: column;
+  border-left: 1px solid rgba(255,183,0,.08);
+}
+.hero-stat {
+  flex: 1;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--rule);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.hero-stat:last-child { border-bottom: none; }
+.stat-label { font-family: var(--mono); font-size: .52rem; letter-spacing: 3px; color: var(--dim); margin-bottom: 6px; text-transform: uppercase; }
+.stat-val { font-family: var(--display); font-size: 1.6rem; font-weight: 900; color: var(--amber); letter-spacing: -1px; }
+.stat-sub { font-size: .75rem; color: var(--dim); font-weight: 300; margin-top: 2px; }
+
+@media(max-width:768px) { .hero-right { display: none; } .hero-left { padding: 36px 20px; } }
+
+/* ── MODULE / WRAPPER ── */
+.module { display: none; }
+.module.active { display: block; }
+.wrapper { max-width: 1200px; margin: 0 auto; padding: 44px 48px 80px; }
+@media(max-width:640px) { .wrapper { padding: 24px 16px 60px; } }
+
+/* ── SECTION HEADER ── */
+.sh {
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+  display: flex; gap: 0; align-items: stretch;
+}
+.sh-accent {
+  width: 4px;
+  background: var(--amber);
+  margin-right: 20px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+.sh-body {}
+.sh-eyebrow { font-family: var(--mono); font-size: .52rem; letter-spacing: 4px; color: var(--dim); margin-bottom: 8px; text-transform: uppercase; }
+.sh-title { font-family: var(--display); font-size: 1.8rem; font-weight: 900; letter-spacing: -1px; line-height: 1; margin-bottom: 8px; }
+.sh-desc { font-size: .92rem; color: var(--dim); font-weight: 300; line-height: 1.65; max-width: 680px; }
+
+/* ── GRIDS ── */
+.g2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+.g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+.gasym { display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px; }
+@media(max-width:860px) { .g2,.g3,.g4,.gasym { grid-template-columns: 1fr; } }
+
+/* ── CARDS ── */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .25s, background .25s;
+}
+.card:hover { border-color: rgba(255,183,0,.2); background: var(--surface); }
+
+/* accent strip top */
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: var(--card-top, transparent);
+  transition: background .3s;
+}
+.card:hover::before { background: var(--card-hover, transparent); }
+
+.ca { --card-hover: rgba(255,183,0,.4); }
+.cl { --card-hover: rgba(125,255,79,.4); }
+.cr { --card-hover: rgba(255,51,34,.4); }
+.cc { --card-hover: rgba(34,221,255,.4); }
+
+.clabel { font-family: var(--mono); font-size: .52rem; letter-spacing: 3px; color: var(--dim); margin-bottom: 8px; text-transform: uppercase; }
+.ctitle { font-family: var(--display); font-size: 1rem; font-weight: 700; letter-spacing: -.5px; margin-bottom: 10px; line-height: 1.1; }
+.cbody { font-size: .85rem; color: var(--dim); line-height: 1.7; font-weight: 300; }
+.cbody strong { color: var(--white); font-weight: 600; }
+.cbody code { font-family: var(--mono); font-size: .72rem; color: var(--lime); background: rgba(125,255,79,.07); padding: 1px 5px; border-radius: 1px; }
+
+/* ── CODE BLOCKS ── */
+.codeblock {
+  background: #030503;
+  border: 1px solid rgba(255,183,0,.08);
+  border-left: 2px solid var(--cb-accent, rgba(255,183,0,.3));
+  border-radius: 2px;
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: .68rem;
+  font-weight: 400;
+  line-height: 1.95;
+  overflow-x: auto;
+  margin: 10px 0;
+  color: #3a5a3a;
+  position: relative;
+}
+.codeblock .lb { position: absolute; top: 6px; right: 10px; font-size: .5rem; letter-spacing: 2px; color: rgba(255,183,0,.25); text-transform: uppercase; }
+.K  { color: #ffb700; font-weight: 600; }  /* keyword */
+.F  { color: #7dff4f; }                     /* function/cmd */
+.S  { color: #ffdd88; }                     /* string */
+.N  { color: #ff8844; }                     /* number */
+.C  { color: #1e3020; font-style: italic; } /* comment */
+.V  { color: #88cc88; }                     /* variable */
+.H  { color: #aaddaa; }                     /* highlighted text */
+.R  { color: #ff3322; }                     /* red/danger */
+.G  { color: #7dff4f; }                     /* green/good */
+.Y  { color: #ffb700; }                     /* yellow/warn */
+.CY { color: #22ddff; }                     /* cyan */
+.W  { color: #e8f0e8; }                     /* white */
+.P  { color: #cc88ff; }                     /* purple */
+
+/* ── RULE BLOCKS ── */
+.rule-block {
+  background: #030503;
+  border: 1px solid rgba(255,183,0,.12);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+.rule-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px;
+  background: rgba(255,183,0,.06);
+  border-bottom: 1px solid rgba(255,183,0,.1);
+}
+.rule-name { font-family: var(--mono); font-size: .6rem; letter-spacing: 2px; color: var(--amber); font-weight: 600; text-transform: uppercase; }
+.rule-sev {
+  font-family: var(--mono); font-size: .52rem; letter-spacing: 1px;
+  padding: 2px 8px; border-radius: 1px;
+}
+.sev-crit { background: rgba(255,51,34,.2); color: var(--red); border: 1px solid rgba(255,51,34,.3); }
+.sev-high { background: rgba(255,183,0,.15); color: var(--amber); border: 1px solid rgba(255,183,0,.3); }
+.sev-med  { background: rgba(125,255,79,.1); color: var(--lime2); border: 1px solid rgba(125,255,79,.25); }
+.rule-body { padding: 14px 18px; font-family: var(--mono); font-size: .68rem; line-height: 1.95; color: #3a5a3a; overflow-x: auto; }
+
+/* ── ALERT ── */
+.alert { border-radius: 2px; padding: 12px 16px; margin: 12px 0; font-size: .85rem; line-height: 1.65; font-weight: 300; border-left: 2px solid; }
+.alert strong { font-weight: 600; }
+.a-warn { background: rgba(255,183,0,.06); border-color: var(--amber); color: rgba(255,183,0,.8); }
+.a-info { background: rgba(34,221,255,.05); border-color: var(--cyan2); color: var(--cyan2); }
+.a-ok   { background: rgba(125,255,79,.05); border-color: var(--lime2); color: var(--lime2); }
+.a-err  { background: rgba(255,51,34,.06);  border-color: var(--red2); color: var(--red); }
+
+/* ── TABLE ── */
+.dTable { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: .82rem; }
+.dTable th { font-family: var(--mono); font-size: .52rem; letter-spacing: 2px; text-transform: uppercase; padding: 9px 14px; text-align: left; background: var(--surface); color: var(--amber); border: 1px solid var(--rule); }
+.dTable td { padding: 9px 14px; border: 1px solid var(--rule); vertical-align: top; line-height: 1.5; color: var(--dim); font-weight: 300; }
+.dTable tr:hover td { background: var(--surface); color: var(--white); }
+.dTable td strong { color: var(--white); font-weight: 500; }
+.dTable td code { font-family: var(--mono); font-size: .7rem; color: var(--lime); }
+.tc-r { color: var(--red); font-family: var(--mono); font-size: .7rem; font-weight: 700; }
+.tc-y { color: var(--amber); font-family: var(--mono); font-size: .7rem; font-weight: 700; }
+.tc-g { color: var(--lime2); font-family: var(--mono); font-size: .7rem; font-weight: 700; }
+.tc-c { color: var(--cyan2); font-family: var(--mono); font-size: .7rem; font-weight: 700; }
+
+/* ── DIVIDER ── */
+.divline { height: 1px; background: var(--rule); margin: 28px 0; }
+
+/* ── BADGE ROW ── */
+.badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.badge { font-family: var(--mono); font-size: .52rem; letter-spacing: 1px; padding: 2px 8px; border-radius: 1px; border: 1px solid; text-transform: uppercase; }
+.ba { color: var(--amber); border-color: rgba(255,183,0,.3); background: rgba(255,183,0,.05); }
+.bl { color: var(--lime2); border-color: rgba(125,255,79,.3); background: rgba(125,255,79,.05); }
+.br { color: var(--red); border-color: rgba(255,51,34,.3); background: rgba(255,51,34,.05); }
+.bc { color: var(--cyan2); border-color: rgba(34,221,255,.3); background: rgba(34,221,255,.05); }
+
+/* ── IN-PAGE TABS ── */
+.itabs { display: flex; border-bottom: 1px solid var(--rule); margin-bottom: 0; overflow-x: auto; scrollbar-width: none; }
+.itabs::-webkit-scrollbar { display: none; }
+.itab { font-family: var(--mono); font-size: .55rem; letter-spacing: 2px; text-transform: uppercase; padding: 10px 16px; cursor: pointer; color: var(--dim); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: all .18s; }
+.itab:hover { color: var(--amber); }
+.itab.active { color: var(--amber); border-bottom-color: var(--amber); }
+.ipanel { display: none; padding-top: 20px; }
+.ipanel.active { display: block; }
+
+/* ── HUNT PIPELINE ── */
+.hunt-pipe {
+  display: flex; gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 14px 0;
+}
+.hp-step {
+  flex: 1; min-width: 110px;
+  padding: 16px 12px;
+  text-align: center;
+  border-right: 1px solid var(--rule);
+  background: var(--panel);
+  transition: background .2s;
+  position: relative;
+}
+.hp-step:last-child { border-right: none; }
+.hp-step:hover { background: var(--surface); }
+.hp-step::after { content: '▶'; position: absolute; right: -8px; top: 50%; transform: translateY(-50%); color: var(--dim); font-size: .7rem; z-index: 2; }
+.hp-step:last-child::after { display: none; }
+.hp-n { font-family: var(--mono); font-size: .48rem; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; }
+.hp-icon { font-size: 1.3rem; margin-bottom: 5px; }
+.hp-name { font-family: var(--mono); font-size: .6rem; letter-spacing: 1px; color: var(--amber); margin-bottom: 3px; font-weight: 600; text-transform: uppercase; }
+.hp-desc { font-size: .7rem; color: var(--dim); line-height: 1.3; }
+
+/* ── DETECTION PYRAMID ── */
+.pyramid {
+  display: flex; flex-direction: column; gap: 3px;
+  margin: 16px 0;
+}
+.pyr-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  border-radius: 2px;
+  border: 1px solid;
+  transition: all .2s;
+  cursor: default;
+}
+.pyr-row:hover { transform: translateX(4px); }
+.pr-1 { background: rgba(255,51,34,.08);  border-color: rgba(255,51,34,.2);  }
+.pr-2 { background: rgba(255,183,0,.06);  border-color: rgba(255,183,0,.2);  margin: 0 20px; }
+.pr-3 { background: rgba(125,255,79,.05); border-color: rgba(125,255,79,.18); margin: 0 40px; }
+.pr-4 { background: rgba(34,221,255,.04); border-color: rgba(34,221,255,.15); margin: 0 60px; }
+.pyr-label { font-family: var(--mono); font-size: .62rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; min-width: 130px; }
+.pr-1 .pyr-label { color: var(--red); }
+.pr-2 .pyr-label { color: var(--amber); }
+.pr-3 .pyr-label { color: var(--lime2); }
+.pr-4 .pyr-label { color: var(--cyan2); }
+.pyr-desc { font-size: .82rem; color: var(--dim); font-weight: 300; }
+.pyr-diff { font-family: var(--mono); font-size: .55rem; color: var(--dim); margin-left: auto; flex-shrink: 0; }
+
+/* ── SIGMA BLOCK ── */
+.sigma-block {
+  background: #030503;
+  border: 1px solid rgba(34,221,255,.12);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+.sigma-hdr {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  background: rgba(34,221,255,.06);
+  border-bottom: 1px solid rgba(34,221,255,.1);
+}
+.sigma-tag { width: 8px; height: 8px; background: var(--cyan2); border-radius: 50%; flex-shrink: 0; }
+.sigma-title { font-family: var(--mono); font-size: .6rem; letter-spacing: 2px; color: var(--cyan2); font-weight: 600; }
+.sigma-body { padding: 14px 18px; font-family: var(--mono); font-size: .68rem; line-height: 1.95; color: #3a5a3a; overflow-x: auto; }
+
+/* ── QUIZ ── */
+.quiz-card {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 22px;
+  margin-bottom: 12px;
+}
+.qnum { font-family: var(--mono); font-size: .52rem; letter-spacing: 3px; color: var(--dim); margin-bottom: 8px; text-transform: uppercase; }
+.qtext { font-size: .95rem; font-weight: 400; color: var(--white); margin-bottom: 16px; line-height: 1.55; }
+.qopts { display: flex; flex-direction: column; gap: 6px; }
+.qopt {
+  font-family: var(--mono); font-size: .7rem;
+  padding: 10px 14px; border: 1px solid var(--rule); border-radius: 1px;
+  background: var(--surface); color: var(--dim); text-align: left; cursor: pointer;
+  transition: all .18s; line-height: 1.45;
+}
+.qopt:hover:not(.locked) { border-color: rgba(255,183,0,.3); color: var(--amber); background: var(--lift); }
+.qopt.correct { border-color: var(--lime2); background: rgba(125,255,79,.08); color: var(--lime2); }
+.qopt.wrong   { border-color: var(--red2); background: rgba(255,51,34,.06); color: var(--red); }
+.qexplain { margin-top: 12px; padding: 12px 16px; background: var(--deep); border-left: 2px solid var(--amber); border-radius: 2px; font-size: .83rem; color: var(--dim); line-height: 1.65; display: none; font-weight: 300; }
+.qexplain.show { display: block; }
+.qexplain strong { color: var(--amber); }
+.qexplain code { font-family: var(--mono); font-size: .7rem; color: var(--lime); }
+
+/* score */
+.score-box { background: var(--panel); border: 1px solid var(--rule); border-radius: 2px; padding: 20px; margin-top: 20px; }
+.score-track { height: 4px; background: var(--rule); border-radius: 2px; margin: 10px 0; overflow: hidden; }
+.score-fill { height: 100%; border-radius: 2px; transition: width .5s, background .5s; }
+.reset-btn { font-family: var(--mono); font-size: .58rem; letter-spacing: 2px; text-transform: uppercase; padding: 8px 18px; background: none; color: var(--amber); border: 1px solid rgba(255,183,0,.3); border-radius: 1px; cursor: pointer; transition: all .2s; margin-top: 10px; }
+.reset-btn:hover { background: rgba(255,183,0,.08); }
+</style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav class="z1">
+  <div class="nav-logo">
+    <div class="nav-logo-mark"></div>
+    <div class="nav-logo-text">DETECT//04</div>
+  </div>
+  <div class="ntabs">
+    <button class="ntab active" onclick="sw('overview',this)">Overview</button>
+    <button class="ntab" onclick="sw('edr',this)">EDR Logic</button>
+    <button class="ntab" onclick="sw('sigma',this)">Sigma Rules</button>
+    <button class="ntab" onclick="sw('siem',this)">SIEM Queries</button>
+    <button class="ntab" onclick="sw('hunting',this)">Threat Hunting</button>
+    <button class="ntab" onclick="sw('forensics',this)">Forensics</button>
+    <button class="ntab" onclick="sw('playbooks',this)">IR Playbooks</button>
+    <button class="ntab" onclick="sw('quiz',this)">Check</button>
+  </div>
+</nav>
+
+<!-- ══ HERO ══ -->
+<div class="hero z1">
+  <div class="hero-left">
+    <div class="hero-eyebrow">Module 04 — Detection Engineering & Defense</div>
+    <h1 class="hero-h1">
+      <span class="hl">DETECT</span><br>
+      <span class="dim">HUNT</span><br>
+      <span class="hl">RESPOND</span>
+    </h1>
+    <p class="hero-desc">Signature-based vs behavioral detection. EDR hook chains. Writing Sigma rules and KQL/SPL queries. Structured threat hunting. Digital forensics and IR playbooks — the complete blue team engineering stack.</p>
+    <div class="hero-tags">
+      <span class="htag">EDR Logic</span>
+      <span class="htag">Sigma / YARA</span>
+      <span class="htag">KQL / SPL</span>
+      <span class="htag">Threat Hunting</span>
+      <span class="htag">DFIR</span>
+      <span class="htag">IR Playbooks</span>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="hero-stat">
+      <div class="stat-label">Primary Role</div>
+      <div class="stat-val">BLUE TEAM</div>
+      <div class="stat-sub">Detection Engineering</div>
+    </div>
+    <div class="hero-stat">
+      <div class="stat-label">Frameworks</div>
+      <div class="stat-val">ATT&CK</div>
+      <div class="stat-sub">D3FEND · NIST CSF</div>
+    </div>
+    <div class="hero-stat">
+      <div class="stat-label">Rule Formats</div>
+      <div class="stat-val">3</div>
+      <div class="stat-sub">YARA · Sigma · KQL/SPL</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     TAB: OVERVIEW
+══════════════════════════════════ -->
+<div class="module active z1" id="mod-overview">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-accent"></div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// 4.0 — The Detection Landscape //</div>
+      <div class="sh-title">Detection Methodology</div>
+      <div class="sh-desc">Detection engineering is the systematic process of converting threat knowledge into reliable, low-false-positive detections. It sits at the intersection of threat intelligence, data engineering, and security operations.</div>
+    </div>
+  </div>
+
+  <!-- Pyramid of Pain -->
+  <div class="card ca" style="margin-bottom:14px">
+    <div class="clabel">David Bianco's Model — 2013</div>
+    <div class="ctitle" style="color:var(--amber)">PYRAMID OF PAIN</div>
+    <div class="cbody" style="margin-bottom:14px">How painful is it for the attacker if you detect and block this indicator? Hash blocks are trivial to defeat — TTPs require fundamental retooling.</div>
+    <div class="pyramid">
+      <div class="pyr-row pr-1">
+        <span class="pyr-label">TTPs</span>
+        <span class="pyr-desc">Behavioral patterns — how adversaries operate. Hardest to change. Detection here forces fundamental retooling.</span>
+        <span class="pyr-diff">TOUGH for attacker</span>
+      </div>
+      <div class="pyr-row pr-2">
+        <span class="pyr-label">TOOLS</span>
+        <span class="pyr-desc">Specific malware families, C2 frameworks (Cobalt Strike, Sliver). Attacker must find/build alternatives.</span>
+        <span class="pyr-diff">CHALLENGING</span>
+      </div>
+      <div class="pyr-row pr-3">
+        <span class="pyr-label">NETWORK IOCs</span>
+        <span class="pyr-desc">C2 domains, IP addresses, URLs. Moderate cost to rotate infrastructure.</span>
+        <span class="pyr-diff">ANNOYING</span>
+      </div>
+      <div class="pyr-row pr-4">
+        <span class="pyr-label">HASHES / IPs</span>
+        <span class="pyr-desc">File hashes (MD5/SHA256), attacker IPs. Trivial to change — recompile or spin new VPS.</span>
+        <span class="pyr-diff">TRIVIAL for attacker</span>
+      </div>
+    </div>
+    <div class="alert a-ok" style="margin-top:8px"><strong>Engineering principle:</strong> Invest heavily in TTP-level detections (behavioral). Hash and IP blocklists are necessary hygiene but insufficient defenses — attackers change them in minutes.</div>
+  </div>
+
+  <!-- Detection types overview -->
+  <div class="g3" style="margin-bottom:14px">
+    <div class="card ca">
+      <div class="clabel">Detection Method 01</div>
+      <div class="ctitle" style="color:var(--amber)">Signature-Based</div>
+      <div class="cbody">
+        <p style="margin-bottom:10px">Matches known-bad patterns: file hashes, byte sequences, domain names. Fast, cheap, high-fidelity for <strong>known threats</strong>.</p>
+        <strong style="font-size:.8rem">Strengths:</strong>
+        <ul style="margin:6px 0 0 14px;font-size:.8rem;line-height:1.8;color:var(--dim)">
+          <li>Zero false positives on exact match</li>
+          <li>Extremely fast execution</li>
+          <li>Easy to share (IOC feeds)</li>
+        </ul>
+        <strong style="font-size:.8rem">Weaknesses:</strong>
+        <ul style="margin:6px 0 0 14px;font-size:.8rem;line-height:1.8;color:var(--dim)">
+          <li>Blind to new/modified variants</li>
+          <li>1-bit change defeats hash match</li>
+          <li>Requires constant updates</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card cl">
+      <div class="clabel">Detection Method 02</div>
+      <div class="ctitle" style="color:var(--lime2)">Behavioral / Heuristic</div>
+      <div class="cbody">
+        <p style="margin-bottom:10px">Detects anomalous <strong>actions and sequences</strong>, not specific signatures. Catches zero-days and novel variants. The direction modern EDR is heading.</p>
+        <strong style="font-size:.8rem">Strengths:</strong>
+        <ul style="margin:6px 0 0 14px;font-size:.8rem;line-height:1.8;color:var(--dim)">
+          <li>Catches unknown malware</li>
+          <li>Harder for attackers to evade</li>
+          <li>TTP-level detection</li>
+        </ul>
+        <strong style="font-size:.8rem">Weaknesses:</strong>
+        <ul style="margin:6px 0 0 14px;font-size:.8rem;line-height:1.8;color:var(--dim)">
+          <li>Higher false positive rate</li>
+          <li>Requires tuning per environment</li>
+          <li>More compute intensive</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card cc">
+      <div class="clabel">Detection Method 03</div>
+      <div class="ctitle" style="color:var(--cyan2)">ML / Anomaly</div>
+      <div class="cbody">
+        <p style="margin-bottom:10px">Statistical deviation from baseline. Machine learning models trained on normal behavior flag outliers. Used in modern UEBA and next-gen EDR.</p>
+        <strong style="font-size:.8rem">Strengths:</strong>
+        <ul style="margin:6px 0 0 14px;font-size:.8rem;line-height:1.8;color:var(--dim)">
+          <li>Detects subtle anomalies</li>
+          <li>No predefined signatures needed</li>
+          <li>Adapts to environment</li>
+        </ul>
+        <strong style="font-size:.8rem">Weaknesses:</strong>
+        <ul style="margin:6px 0 0 14px;font-size:.8rem;line-height:1.8;color:var(--dim)">
+          <li>Black box — hard to explain</li>
+          <li>Slow LttPD (slow attackers evade)</li>
+          <li>Requires large training baseline</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data sources -->
+  <div class="card ca" style="margin-bottom:14px">
+    <div class="clabel">Visibility Foundation</div>
+    <div class="ctitle" style="color:var(--amber)">DETECTION DATA SOURCES</div>
+    <div class="cbody" style="margin-bottom:12px">A detection is only as good as the data it queries. These are the primary telemetry sources for enterprise detection:</div>
+    <table class="dTable">
+      <tr><th>SOURCE</th><th>WHAT IT CAPTURES</th><th>KEY TOOL</th><th>COVERAGE GAP WITHOUT IT</th></tr>
+      <tr>
+        <td><strong>Windows Event Logs</strong></td>
+        <td>Logon events (4624/4625), process creation (4688), account changes, service installs (7045)</td>
+        <td><code>Get-WinEvent</code>, SIEM</td>
+        <td>Blind to authentication, lateral movement, privilege escalation</td>
+      </tr>
+      <tr>
+        <td><strong>Sysmon</strong></td>
+        <td>Process create (1), network connect (3), file create (11), registry (12-14), CreateRemoteThread (8)</td>
+        <td>Sysmon + SIEM</td>
+        <td>No process lineage, no injection detection, no DNS</td>
+      </tr>
+      <tr>
+        <td><strong>EDR Telemetry</strong></td>
+        <td>API calls, memory events, kernel events, file writes, registry, network — all correlated per process</td>
+        <td>CrowdStrike, SentinelOne, Defender</td>
+        <td>No behavioral analysis, no memory scanning</td>
+      </tr>
+      <tr>
+        <td><strong>DNS Logs</strong></td>
+        <td>All DNS queries from endpoints — reveals DGA, C2 beaconing, data exfil via DNS</td>
+        <td>DNS server logs, Zeek</td>
+        <td>Completely blind to DNS-based C2 and tunneling</td>
+      </tr>
+      <tr>
+        <td><strong>NetFlow / PCAP</strong></td>
+        <td>Network conversations, byte volumes, protocol metadata, JA3/JA3S fingerprints</td>
+        <td>Zeek, Suricata, ntopng</td>
+        <td>No lateral movement visibility, no exfil volume detection</td>
+      </tr>
+      <tr>
+        <td><strong>PowerShell Script Block Logs</strong></td>
+        <td>Full text of every PowerShell script executed — critical for LOLBin/fileless detection</td>
+        <td>Event 4104</td>
+        <td>Completely blind to PowerShell-based attacks</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     TAB: EDR LOGIC
+══════════════════════════════════ -->
+<div class="module z1" id="mod-edr">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-accent"></div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// 4.1 — Endpoint Detection & Response //</div>
+      <div class="sh-title">EDR Architecture & Detection Logic</div>
+      <div class="sh-desc">How modern EDR products instrument the operating system, intercept API calls, correlate events, and generate alerts — and where attackers try to blind them.</div>
+    </div>
+  </div>
+
+  <!-- EDR Architecture -->
+  <div class="card ca" style="margin-bottom:14px">
+    <div class="clabel">How EDR Works</div>
+    <div class="ctitle" style="color:var(--amber)">EDR INSTRUMENTATION LAYERS</div>
+    <div class="codeblock" style="--cb-accent:var(--amber)">
+      <span class="lb">ARCHITECTURE</span>
+<span class="Y">USER SPACE</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  Malicious process                                              │
+│  └─ calls VirtualAllocEx()                                      │
+│       ↓                                                         │
+│  <span class="K">Win32 API (kernel32.dll)</span>                                        │
+│  └─ routes to ntdll.dll                                         │
+│       ↓                                                         │
+│  <span class="K">ntdll.dll (NtAllocateVirtualMemory)</span>                              │
+│  └─ <span class="Y">← EDR DLL INJECTION HERE</span>                                    │
+│     EDR patches first 5 bytes with JMP to EDR inspection code   │
+│     EDR inspects call stack, arguments, context                 │
+│     EDR logs event, optionally BLOCKS call                      │
+│       ↓ (if allowed)                                            │
+│  <span class="K">SYSCALL instruction</span> → transition to kernel                       │
+└─────────────────────────────────────────────────────────────────┘
+
+<span class="Y">KERNEL SPACE</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  <span class="K">Kernel driver (EDR.sys)</span>                                         │
+│  ├─ Kernel callbacks: PsSetCreateProcessNotifyRoutine           │
+│  │   → fires on every process create/terminate                  │
+│  ├─ PsSetCreateThreadNotifyRoutine → every thread               │
+│  ├─ CmRegisterCallback → every registry operation               │
+│  ├─ ObRegisterCallbacks → object access (LSASS protection)      │
+│  └─ Minifilter driver → every file system operation             │
+│                                                                 │
+│  <span class="G">ETW (Event Tracing for Windows)</span>                                  │
+│  ├─ Microsoft-Windows-Kernel-Process                            │
+│  ├─ Microsoft-Windows-Threat-Intelligence (ETWTI)               │
+│  └─ → captures memory alloc, injection, syscall patterns        │
+└─────────────────────────────────────────────────────────────────┘</div>
+  </div>
+
+  <!-- Sysmon config -->
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card cl">
+      <div class="clabel">Sysmon Configuration</div>
+      <div class="ctitle" style="color:var(--lime2)">HIGH-VALUE SYSMON EVENT IDs</div>
+      <table class="dTable">
+        <tr><th>EVENT ID</th><th>DESCRIPTION</th><th>DETECTION VALUE</th></tr>
+        <tr><td class="tc-r">1</td><td>Process Create (with cmdline, hashes, parent)</td><td class="tc-r">CRITICAL</td></tr>
+        <tr><td class="tc-r">3</td><td>Network Connection (process → IP:port)</td><td class="tc-r">CRITICAL</td></tr>
+        <tr><td class="tc-y">7</td><td>Image Loaded (DLL load events)</td><td class="tc-y">HIGH</td></tr>
+        <tr><td class="tc-r">8</td><td>CreateRemoteThread (source → target PID)</td><td class="tc-r">CRITICAL</td></tr>
+        <tr><td class="tc-r">10</td><td>ProcessAccess (LSASS reads = credential theft)</td><td class="tc-r">CRITICAL</td></tr>
+        <tr><td class="tc-y">11</td><td>FileCreate (file written — malware drops)</td><td class="tc-y">HIGH</td></tr>
+        <tr><td class="tc-y">12-14</td><td>RegistryEvent (keys set/deleted)</td><td class="tc-y">HIGH</td></tr>
+        <tr><td class="tc-y">22</td><td>DNSQuery (process → DNS lookup)</td><td class="tc-y">HIGH</td></tr>
+        <tr><td class="tc-r">25</td><td>ProcessTampering (hollowing detected)</td><td class="tc-r">CRITICAL</td></tr>
+      </table>
+    </div>
+    <div class="card cl">
+      <div class="clabel">Sysmon Config — SwiftOnSecurity base</div>
+      <div class="ctitle" style="color:var(--lime2)">SYSMON XML CONFIGURATION</div>
+      <div class="codeblock" style="--cb-accent:var(--lime2)">
+<span class="C">&lt;!-- sysmon-config.xml — minimal high-value config --&gt;</span>
+&lt;<span class="K">Sysmon</span> schemaversion=<span class="S">"4.90"</span>&gt;
+  &lt;<span class="K">EventFiltering</span>&gt;
+
+    <span class="C">&lt;!-- Ev1: All process creation --&gt;</span>
+    &lt;<span class="K">RuleGroup</span> groupRelation=<span class="S">"or"</span>&gt;
+      &lt;<span class="F">ProcessCreate</span> onmatch=<span class="S">"exclude"</span>&gt;
+        &lt;<span class="V">Image</span> condition=<span class="S">"is"</span>&gt;
+          C:\Windows\System32\svchost.exe
+        &lt;/<span class="V">Image</span>&gt;
+      &lt;/<span class="F">ProcessCreate</span>&gt;
+    &lt;/<span class="K">RuleGroup</span>&gt;
+
+    <span class="C">&lt;!-- Ev3: Network (exclude common noise) --&gt;</span>
+    &lt;<span class="K">RuleGroup</span> groupRelation=<span class="S">"or"</span>&gt;
+      &lt;<span class="F">NetworkConnect</span> onmatch=<span class="S">"exclude"</span>&gt;
+        &lt;<span class="V">Image</span> condition=<span class="S">"is"</span>&gt;
+          C:\Windows\System32\svchost.exe
+        &lt;/<span class="V">Image</span>&gt;
+      &lt;/<span class="F">NetworkConnect</span>&gt;
+    &lt;/<span class="K">RuleGroup</span>&gt;
+
+    <span class="C">&lt;!-- Ev10: LSASS access (credential theft) --&gt;</span>
+    &lt;<span class="K">RuleGroup</span> groupRelation=<span class="S">"or"</span>&gt;
+      &lt;<span class="F">ProcessAccess</span> onmatch=<span class="S">"include"</span>&gt;
+        &lt;<span class="V">TargetImage</span> condition=<span class="S">"endswith"</span>&gt;
+          lsass.exe
+        &lt;/<span class="V">TargetImage</span>&gt;
+      &lt;/<span class="F">ProcessAccess</span>&gt;
+    &lt;/<span class="K">RuleGroup</span>&gt;
+
+  &lt;/<span class="K">EventFiltering</span>&gt;
+&lt;/<span class="K">Sysmon</span>&gt;</div>
+    </div>
+  </div>
+
+  <!-- EDR bypass awareness -->
+  <div class="card cr">
+    <div class="clabel">Adversarial Awareness</div>
+    <div class="ctitle" style="color:var(--red)">EDR BYPASS TECHNIQUES — DEFENDER MUST KNOW</div>
+    <div class="cbody" style="margin-bottom:12px">Understanding how attackers attempt to blind EDR allows defenders to build compensating controls and detection for the bypass attempts themselves.</div>
+    <div class="g2">
+      <div class="codeblock" style="--cb-accent:var(--red)">
+<span class="R">BYPASS 1: Unhooking (direct syscalls)</span>
+<span class="C"># EDR hooks ntdll.dll functions in user space</span>
+<span class="C"># Attacker reads syscall numbers from disk copy of ntdll</span>
+<span class="C"># Invokes syscall directly, bypassing EDR hooks</span>
+
+<span class="C"># Detection:</span>
+<span class="G">→</span> Monitor ETW ETWTI provider (kernel-level)
+<span class="G">→</span> ETWTI is not in ntdll — hooks don't help attacker
+<span class="G">→</span> Alert on: unusual ntdll reads from disk
+<span class="G">→</span> Alert on: module loaded from non-standard path
+<span class="G">→</span> EDR kernel driver callbacks fire regardless of hooking</div>
+      <div class="codeblock" style="--cb-accent:var(--red)">
+<span class="R">BYPASS 2: Process Injection into EDR</span>
+<span class="C"># Inject code into the EDR agent process itself</span>
+<span class="C"># EDR can't monitor its own memory writes</span>
+
+<span class="C"># Mitigations:</span>
+<span class="G">→</span> Protected Process Light (PPL) on EDR processes
+<span class="G">→</span> ObRegisterCallbacks: EDR denies any handle to itself
+<span class="G">→</span> Tamper protection (CrowdStrike, Defender)
+<span class="G">→</span> Memory integrity (HVCI/Virtualization-based security)</div>
+      <div class="codeblock" style="--cb-accent:var(--red)">
+<span class="R">BYPASS 3: Kernel Driver Exploit</span>
+<span class="C"># Use a vulnerable signed driver (BYOVD)</span>
+<span class="C"># e.g. dell_hwinfo.sys, gdrv.sys</span>
+<span class="C"># Get ring-0 execution → kill EDR driver</span>
+
+<span class="C"># Detection:</span>
+<span class="G">→</span> Block vulnerable driver hashes (WDAC policy)
+<span class="G">→</span> Alert on unusual driver loads (Sysmon Ev6)
+<span class="G">→</span> MSFT vulnerable driver blocklist (updated)
+<span class="G">→</span> Alert on EDR process termination events</div>
+      <div class="codeblock" style="--cb-accent:var(--red)">
+<span class="R">BYPASS 4: Early Boot Execution</span>
+<span class="C"># Execute before EDR driver loads</span>
+<span class="C"># Bootkit in MBR/UEFI pre-loads malware</span>
+
+<span class="C"># Mitigations:</span>
+<span class="G">→</span> Secure Boot (firmware signature chain)
+<span class="G">→</span> UEFI attestation
+<span class="G">→</span> Measured boot (TPM-based integrity)
+<span class="G">→</span> ELAM driver (anti-malware early launch)</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     TAB: SIGMA RULES
+══════════════════════════════════ -->
+<div class="module z1" id="mod-sigma">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-accent"></div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// 4.2 — SIEM-Agnostic Detection Rules //</div>
+      <div class="sh-title">Sigma Rule Authoring</div>
+      <div class="sh-desc">Sigma is YARA for log events — write once, convert to Splunk SPL, Microsoft KQL, Elastic EQL, or any other SIEM format using sigma-cli. The industry standard for portable detection logic.</div>
+    </div>
+  </div>
+
+  <!-- Sigma anatomy -->
+  <div class="card cc" style="margin-bottom:14px">
+    <div class="clabel">Sigma Rule — Complete Anatomy</div>
+    <div class="ctitle" style="color:var(--cyan2)">RULE STRUCTURE WITH ANNOTATIONS</div>
+    <div class="sigma-block">
+      <div class="sigma-hdr">
+        <div class="sigma-tag"></div>
+        <div class="sigma-title">SIGMA — ANNOTATED RULE STRUCTURE</div>
+      </div>
+      <div class="sigma-body"><span class="Y">title:</span>     Suspicious Process Injection via CreateRemoteThread
+<span class="Y">id:</span>        a1b2c3d4-e5f6-7890-abcd-ef1234567890  <span class="C"># unique UUID</span>
+<span class="Y">status:</span>    stable                                  <span class="C"># experimental|test|stable|deprecated</span>
+<span class="Y">description:</span> |
+    Detects classic process injection via CreateRemoteThread API call.
+    Covers DLL injection and shellcode injection patterns.
+    False positives: some legitimate software (AV, debuggers).
+
+<span class="Y">author:</span>    analyst@org.com
+<span class="Y">date:</span>      2025/01/15
+<span class="Y">modified:</span>  2025/06/01
+
+<span class="Y">references:</span>
+    - https://attack.mitre.org/techniques/T1055/
+    - https://docs.microsoft.com/en-us/sysinternals/downloads/sysmon
+
+<span class="Y">tags:</span>
+    - attack.defense_evasion        <span class="C"># TA0005</span>
+    - attack.privilege_escalation   <span class="C"># TA0004 (often combined)</span>
+    - attack.t1055                  <span class="C"># Process Injection</span>
+    - attack.t1055.001              <span class="C"># DLL Injection subtechnique</span>
+
+<span class="Y">logsource:</span>                          <span class="C"># what log this targets</span>
+    category: create_remote_thread  <span class="C"># Sysmon Event ID 8</span>
+    product: windows
+
+<span class="Y">detection:</span>
+    selection:
+        <span class="CY">SourceImage|endswith:</span>          <span class="C"># process CREATING the thread</span>
+            - '\explorer.exe'
+            - '\winword.exe'
+            - '\excel.exe'
+            - '\powerpnt.exe'
+            - '\outlook.exe'
+            - '\notepad.exe'
+
+    <span class="CY">filter_legit:</span>                      <span class="C"># known-good exclusions</span>
+        <span class="CY">TargetImage|endswith:</span>
+            - '\svchost.exe'           <span class="C"># legitimate svchost injections</span>
+        <span class="CY">SourceImage|startswith:</span>
+            - 'C:\Windows\System32\'  <span class="C"># system processes</span>
+
+    <span class="CY">condition:</span> selection <span class="K">and not</span> filter_legit
+
+<span class="Y">fields:</span>                             <span class="C"># useful fields to include in alert</span>
+    - SourceImage
+    - TargetImage
+    - TargetProcessId
+    - StartAddress
+
+<span class="Y">falsepositives:</span>
+    - Antivirus products (known good — add to filter)
+    - Debuggers (development environments only)
+    - Legitimate monitoring software (verify before filtering)
+
+<span class="Y">level:</span> high                         <span class="C"># informational|low|medium|high|critical</span>
+<span class="Y">tlp:</span>  AMBER</div>
+    </div>
+  </div>
+
+  <!-- More Sigma rules -->
+  <div class="g2" style="margin-bottom:14px">
+
+    <div>
+      <div class="rule-block">
+        <div class="rule-header">
+          <span class="rule-name">Sigma — PowerShell Encoded Command</span>
+          <span class="rule-sev sev-high">HIGH</span>
+        </div>
+        <div class="rule-body"><span class="Y">title:</span> PowerShell Encoded Command (Fileless Loader)
+<span class="Y">id:</span>    b2c3d4e5-f6a7-8901-bcde-f12345678901
+<span class="Y">status:</span> stable
+<span class="Y">logsource:</span>
+    category: process_creation
+    product: windows
+<span class="Y">detection:</span>
+    selection_pwsh:
+        <span class="CY">Image|endswith:</span>
+            - '\powershell.exe'
+            - '\pwsh.exe'
+    selection_enc:
+        <span class="CY">CommandLine|contains:</span>
+            - ' -EncodedCommand '
+            - ' -enc '
+            - ' -e '
+    selection_bypass:
+        <span class="CY">CommandLine|contains:</span>
+            - 'bypass'
+            - 'hidden'
+            - 'noprofile'
+    <span class="CY">condition:</span> selection_pwsh <span class="K">and</span> selection_enc
+               <span class="K">and</span> selection_bypass
+<span class="Y">level:</span> high
+<span class="Y">tags:</span> [attack.execution, attack.t1059.001]</div>
+      </div>
+
+      <div class="rule-block" style="margin-top:8px">
+        <div class="rule-header">
+          <span class="rule-name">Sigma — WMI Persistence (T1546.003)</span>
+          <span class="rule-sev sev-crit">CRITICAL</span>
+        </div>
+        <div class="rule-body"><span class="Y">title:</span> WMI Event Subscription Persistence
+<span class="Y">id:</span>    c3d4e5f6-a7b8-9012-cdef-123456789012
+<span class="Y">status:</span> stable
+<span class="Y">logsource:</span>
+    product: windows
+    service: wmi
+<span class="Y">detection:</span>
+    selection:
+        <span class="CY">EventType:</span> ExtrinsicEvent
+        <span class="CY">Destination|contains:</span>
+            - 'ActiveScriptEventConsumer'
+            - 'CommandLineEventConsumer'
+    <span class="CY">condition:</span> selection
+<span class="Y">falsepositives:</span>
+    - SCCM/WDS legitimate WMI subscriptions
+    - Some monitoring software
+<span class="Y">level:</span> critical
+<span class="Y">tags:</span> [attack.persistence, attack.t1546.003]</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="rule-block">
+        <div class="rule-header">
+          <span class="rule-name">Sigma — Credential Theft (LSASS Access)</span>
+          <span class="rule-sev sev-crit">CRITICAL</span>
+        </div>
+        <div class="rule-body"><span class="Y">title:</span> LSASS Memory Access — Credential Theft
+<span class="Y">id:</span>    d4e5f6a7-b8c9-0123-defa-234567890123
+<span class="Y">status:</span> stable
+<span class="Y">logsource:</span>
+    category: process_access   <span class="C"># Sysmon Ev10</span>
+    product: windows
+<span class="Y">detection:</span>
+    selection:
+        <span class="CY">TargetImage|endswith:</span> '\lsass.exe'
+        <span class="CY">GrantedAccess|contains:</span>
+            - '0x1010'   <span class="C"># PROCESS_VM_READ</span>
+            - '0x1410'   <span class="C"># + PROCESS_QUERY_INFO</span>
+            - '0x1438'   <span class="C"># full access</span>
+    filter_legit:
+        <span class="CY">SourceImage|startswith:</span>
+            - 'C:\Windows\System32\'
+            - 'C:\Program Files\CrowdStrike\'
+    <span class="CY">condition:</span> selection <span class="K">and not</span> filter_legit
+<span class="Y">level:</span> critical
+<span class="Y">tags:</span> [attack.credential_access, attack.t1003.001]</div>
+      </div>
+
+      <div class="rule-block" style="margin-top:8px">
+        <div class="rule-header">
+          <span class="rule-name">Sigma — VSS Shadow Copy Deletion</span>
+          <span class="rule-sev sev-crit">CRITICAL</span>
+        </div>
+        <div class="rule-body"><span class="Y">title:</span> Volume Shadow Copy Deletion (Ransomware)
+<span class="Y">id:</span>    e5f6a7b8-c9d0-1234-efab-345678901234
+<span class="Y">status:</span> stable
+<span class="Y">logsource:</span>
+    category: process_creation
+    product: windows
+<span class="Y">detection:</span>
+    <span class="CY">sel_vssadmin:</span>
+        <span class="CY">Image|endswith:</span> '\vssadmin.exe'
+        <span class="CY">CommandLine|contains:</span> 'delete shadows'
+    <span class="CY">sel_wmic:</span>
+        <span class="CY">Image|endswith:</span> '\wmic.exe'
+        <span class="CY">CommandLine|contains|all:</span>
+            - 'shadowcopy'
+            - 'delete'
+    <span class="CY">sel_wbadmin:</span>
+        <span class="CY">CommandLine|contains|all:</span>
+            - 'wbadmin'
+            - 'delete'
+            - 'catalog'
+    <span class="CY">condition:</span> sel_vssadmin <span class="K">or</span>
+               sel_wmic <span class="K">or</span>
+               sel_wbadmin
+<span class="Y">level:</span> critical
+<span class="Y">tags:</span> [attack.impact, attack.t1490]</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- sigma-cli conversion -->
+  <div class="card cc">
+    <div class="clabel">Sigma CLI — Rule Conversion</div>
+    <div class="ctitle" style="color:var(--cyan2)">CONVERT SIGMA TO ANY SIEM FORMAT</div>
+    <div class="codeblock" style="--cb-accent:var(--cyan2)">
+<span class="lb">BASH</span>
+<span class="C"># Install sigma-cli</span>
+<span class="F">pip</span> install sigma-cli
+
+<span class="C"># Convert to Microsoft Sentinel KQL</span>
+<span class="F">sigma</span> convert -t microsoft365defender rule.yml
+
+<span class="C"># Convert to Splunk SPL</span>
+<span class="F">sigma</span> convert -t splunk rule.yml
+
+<span class="C"># Convert to Elastic EQL</span>
+<span class="F">sigma</span> convert -t elasticsearch rule.yml
+
+<span class="C"># Convert entire rules directory to Splunk</span>
+<span class="F">sigma</span> convert -t splunk -r /rules/windows/ > splunk_rules.conf
+
+<span class="C"># Validate rule syntax</span>
+<span class="F">sigma</span> check rule.yml
+
+<span class="C"># List supported backends</span>
+<span class="F">sigma</span> list backends
+
+<span class="C"># Output: KQL (from LSASS rule above)</span>
+<span class="H">DeviceEvents
+| where ActionType == "OpenProcess"
+| where FileName endswith "lsass.exe"
+| where ProcessAccessMask has_any ("0x1010","0x1410","0x1438")
+| where not InitiatingProcessFolderPath startswith @"C:\Windows\System32\"</span></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     TAB: SIEM QUERIES
+══════════════════════════════════ -->
+<div class="module z1" id="mod-siem">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-accent"></div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// 4.3 — SIEM Query Languages //</div>
+      <div class="sh-title">KQL & SPL Detection Queries</div>
+      <div class="sh-desc">Production-ready queries for Microsoft Sentinel (KQL) and Splunk (SPL) covering the highest-value detection scenarios. Each query includes tuning notes and ATT&CK mapping.</div>
+    </div>
+  </div>
+
+  <div class="itabs">
+    <button class="itab active" onclick="iTab('kql',this)">KQL — Sentinel</button>
+    <button class="itab" onclick="iTab('spl',this)">SPL — Splunk</button>
+    <button class="itab" onclick="iTab('eql',this)">EQL — Elastic</button>
+  </div>
+
+  <div class="ipanel active" id="ip-kql">
+
+    <div class="rule-block" style="margin-bottom:10px">
+      <div class="rule-header">
+        <span class="rule-name">KQL — Beaconing Detection (C2 Timing)</span>
+        <span class="rule-sev sev-high">T1071 · C2</span>
+      </div>
+      <div class="rule-body"><span class="C">// Detect regular beaconing patterns — statistical periodicity analysis</span>
+<span class="CY">// Tuning: adjust MinBeaconCount and StdDevThreshold for environment</span>
+
+<span class="K">let</span> <span class="V">LookbackWindow</span> = <span class="N">24h</span>;
+<span class="K">let</span> <span class="V">MinBeaconCount</span> = <span class="N">10</span>;      <span class="C">// min connections to flag</span>
+<span class="K">let</span> <span class="V">StdDevThreshold</span> = <span class="N">5.0</span>;   <span class="C">// low stddev = regular interval</span>
+
+<span class="F">DeviceNetworkEvents</span>
+<span class="K">| where</span> TimeGenerated &gt; ago(<span class="V">LookbackWindow</span>)
+<span class="K">| where</span> RemotePort <span class="K">in</span> (<span class="N">80</span>, <span class="N">443</span>, <span class="N">8080</span>, <span class="N">8443</span>)
+<span class="K">| summarize</span>
+    ConnectionCount = count(),
+    IntervalSeconds = stdev(bin(TimeGenerated, <span class="N">1s</span>))
+    <span class="K">by</span> DeviceName, InitiatingProcessFileName, RemoteIP, RemotePort
+<span class="K">| where</span> ConnectionCount &gt; <span class="V">MinBeaconCount</span>
+<span class="K">| where</span> IntervalSeconds &lt; <span class="V">StdDevThreshold</span>  <span class="C">// low stddev = periodic</span>
+<span class="K">| where</span> InitiatingProcessFileName !in~ (
+    <span class="S">"chrome.exe"</span>, <span class="S">"firefox.exe"</span>, <span class="S">"msedge.exe"</span>, <span class="S">"svchost.exe"</span>
+)
+<span class="K">| project</span> DeviceName, InitiatingProcessFileName,
+          RemoteIP, RemotePort, ConnectionCount, IntervalSeconds
+<span class="K">| order by</span> IntervalSeconds <span class="K">asc</span>  <span class="C">// most regular first</span></div>
+    </div>
+
+    <div class="rule-block" style="margin-bottom:10px">
+      <div class="rule-header">
+        <span class="rule-name">KQL — Lateral Movement via WMI/PsExec</span>
+        <span class="rule-sev sev-high">T1021 · Lateral Movement</span>
+      </div>
+      <div class="rule-body"><span class="C">// Detect lateral movement via WMI remote execution and PsExec patterns</span>
+<span class="F">SecurityEvent</span>
+<span class="K">| where</span> EventID == <span class="N">4688</span>                  <span class="C">// Process creation</span>
+<span class="K">| where</span> ParentProcessName <span class="K">contains</span> <span class="S">"WmiPrvSE"</span>
+<span class="K">| where</span> NewProcessName !endswith <span class="K">in</span> (
+    <span class="S">"mofcomp.exe"</span>, <span class="S">"wmiprvse.exe"</span>, <span class="S">"unsecapp.exe"</span>
+)
+<span class="K">| project</span> TimeGenerated, Computer, Account,
+          NewProcessName, CommandLine, ParentProcessName
+<span class="K">| union</span> (
+    <span class="C">// PsExec pattern: PSEXESVC service creation</span>
+    <span class="F">SecurityEvent</span>
+    <span class="K">| where</span> EventID == <span class="N">7045</span>
+    <span class="K">| where</span> ServiceName <span class="K">contains</span> <span class="S">"PSEXESVC"</span>
+    <span class="K">   or</span>  ServiceFileName <span class="K">contains</span> <span class="S">"\\ADMIN$\\"</span>
+    <span class="K">| project</span> TimeGenerated, Computer,
+              ServiceName, ServiceFileName
+)
+<span class="K">| order by</span> TimeGenerated <span class="K">desc</span></div>
+    </div>
+
+    <div class="rule-block">
+      <div class="rule-header">
+        <span class="rule-name">KQL — Impossible Travel Detection (UEBA)</span>
+        <span class="rule-sev sev-high">T1078 · Account Abuse</span>
+      </div>
+      <div class="rule-body"><span class="C">// Detect logons from geographically impossible locations within short time window</span>
+<span class="F">SigninLogs</span>
+<span class="K">| where</span> ResultType == <span class="S">"0"</span>              <span class="C">// successful sign-ins only</span>
+<span class="K">| project</span> TimeGenerated, UserPrincipalName,
+          Location, IPAddress, AppDisplayName
+<span class="K">| sort by</span> UserPrincipalName, TimeGenerated <span class="K">asc</span>
+<span class="K">| serialize</span>
+<span class="K">| extend</span>
+    PrevTime     = prev(TimeGenerated),
+    PrevLocation = prev(Location),
+    PrevUser     = prev(UserPrincipalName)
+<span class="K">| where</span> UserPrincipalName == PrevUser      <span class="C">// same user</span>
+<span class="K">| extend</span> TimeDiffMinutes = datetime_diff(<span class="S">'minute'</span>, TimeGenerated, PrevTime)
+<span class="K">| where</span> TimeDiffMinutes &lt; <span class="N">60</span>              <span class="C">// within 1 hour</span>
+<span class="K">| where</span> Location != PrevLocation          <span class="C">// different country</span>
+<span class="K">| where</span> PrevLocation !has <span class="S">"VPN"</span>           <span class="C">// exclude known VPN</span>
+<span class="K">| project</span> UserPrincipalName,
+          PrevLocation, Location,
+          TimeDiffMinutes, IPAddress, AppDisplayName
+<span class="K">| where</span> TimeDiffMinutes &gt; <span class="N">0</span></div>
+    </div>
+
+  </div>
+
+  <div class="ipanel" id="ip-spl">
+
+    <div class="rule-block" style="margin-bottom:10px">
+      <div class="rule-header">
+        <span class="rule-name">SPL — DGA Detection (DNS NXDOMAIN Storm)</span>
+        <span class="rule-sev sev-high">T1568.002 · DGA</span>
+      </div>
+      <div class="rule-body"><span class="C">| Detect DGA bots: high NXDOMAIN ratio + high-entropy domains</span>
+
+<span class="K">index</span>=dns sourcetype=dns
+<span class="K">| eval</span> domain_len = len(query)
+<span class="K">| where</span> domain_len > <span class="N">20</span>              <span class="C">/* long labels typical of DGA */</span>
+<span class="K">| stats</span>
+    count <span class="K">as</span> total,
+    sum(eval(if(reply_code="NXDOMAIN",<span class="N">1</span>,<span class="N">0</span>))) <span class="K">as</span> nxdomain_count
+    <span class="K">by</span> src_ip, dest
+<span class="K">| eval</span> nxdomain_ratio = round(nxdomain_count / total * <span class="N">100</span>, <span class="N">1</span>)
+<span class="K">| where</span> nxdomain_ratio > <span class="N">70</span>           <span class="C">/* &gt;70% NXDOMAIN = DGA bot */</span>
+<span class="K">| where</span> total > <span class="N">50</span>                     <span class="C">/* minimum query volume */</span>
+<span class="K">| sort</span> -nxdomain_ratio
+<span class="K">| table</span> src_ip, dest, total, nxdomain_count, nxdomain_ratio</div>
+    </div>
+
+    <div class="rule-block" style="margin-bottom:10px">
+      <div class="rule-header">
+        <span class="rule-name">SPL — Ransomware: File Encryption Storm</span>
+        <span class="rule-sev sev-crit">T1486 · Ransomware</span>
+      </div>
+      <div class="rule-body"><span class="C">| Detect bulk file rename/write activity typical of ransomware encryption</span>
+
+<span class="K">index</span>=sysmon EventCode=<span class="N">11</span>            <span class="C">/* Sysmon FileCreate events */</span>
+<span class="K">| stats</span>
+    count <span class="K">as</span> file_writes,
+    dc(TargetFilename) <span class="K">as</span> unique_files,
+    values(TargetFilename) <span class="K">as</span> files
+    <span class="K">by</span> Image, ComputerName, _time span=<span class="N">1m</span>
+<span class="K">| where</span> file_writes > <span class="N">100</span>             <span class="C">/* &gt;100 writes/minute */</span>
+<span class="K">| join</span> Image [
+    <span class="K">search</span> <span class="K">index</span>=sysmon EventCode=<span class="N">1</span>
+    | table Image, CommandLine, ParentImage
+]
+<span class="K">| eval</span> has_ransom_ext = if(
+    match(files, <span class="S">"\.(locked|encrypted|enc|cry|xxx|zzz)$"</span>), <span class="N">1</span>, <span class="N">0</span>
+)
+<span class="K">| where</span> has_ransom_ext == <span class="N">1</span> <span class="K">OR</span> file_writes > <span class="N">500</span>
+<span class="K">| table</span> ComputerName, Image, CommandLine, file_writes, has_ransom_ext</div>
+    </div>
+
+    <div class="rule-block">
+      <div class="rule-header">
+        <span class="rule-name">SPL — Pass-the-Hash Detection</span>
+        <span class="rule-sev sev-crit">T1550.002 · PtH</span>
+      </div>
+      <div class="rule-body"><span class="C">| Pass-the-Hash: NTLM auth with different source IP than expected</span>
+<span class="C">| EventID 4624 LogonType 3 (network) + NTLM + no password hash</span>
+
+<span class="K">index</span>=wineventlog EventCode=<span class="N">4624</span>
+    LogonType=<span class="N">3</span>
+    AuthenticationPackageName=NTLM
+<span class="K">| stats</span>
+    count <span class="K">as</span> auth_count,
+    dc(IpAddress) <span class="K">as</span> unique_sources,
+    values(IpAddress) <span class="K">as</span> src_ips,
+    values(TargetUserName) <span class="K">as</span> users
+    <span class="K">by</span> ComputerName, WorkstationName, _time span=<span class="N">10m</span>
+<span class="K">| where</span> unique_sources > <span class="N">1</span>            <span class="C">/* same account, multiple IPs */</span>
+<span class="K">| lookup</span> known_admin_hosts ComputerName <span class="K">OUTPUT</span> is_admin_host
+<span class="K">| where</span> is_admin_host != <span class="S">"true"</span>
+<span class="K">| table</span> ComputerName, users, src_ips, auth_count, unique_sources</div>
+    </div>
+
+  </div>
+
+  <div class="ipanel" id="ip-eql">
+    <div class="rule-block" style="margin-bottom:10px">
+      <div class="rule-header">
+        <span class="rule-name">EQL — Office Process Spawning Shell</span>
+        <span class="rule-sev sev-crit">T1566 · Phishing → Execution</span>
+      </div>
+      <div class="rule-body"><span class="C">// Elastic EQL: Office application spawning cmd/PowerShell (macro execution)</span>
+
+<span class="K">sequence by</span> host.name <span class="K">with maxspan</span>=<span class="N">5m</span>
+  [process <span class="K">where</span>
+    process.name : (<span class="S">"winword.exe"</span>, <span class="S">"excel.exe"</span>,
+                   <span class="S">"powerpnt.exe"</span>, <span class="S">"outlook.exe"</span>)
+    <span class="K">and</span> event.type == <span class="S">"start"</span>
+  ]
+  [process <span class="K">where</span>
+    process.name : (<span class="S">"cmd.exe"</span>, <span class="S">"powershell.exe"</span>, <span class="S">"wscript.exe"</span>,
+                   <span class="S">"mshta.exe"</span>, <span class="S">"certutil.exe"</span>, <span class="S">"regsvr32.exe"</span>)
+    <span class="K">and</span> event.type == <span class="S">"start"</span>
+    <span class="K">and not</span> process.command_line : <span class="S">"*</span>\<span class="S">Microsoft Office*"</span>
+  ]</div>
+    </div>
+    <div class="rule-block">
+      <div class="rule-header">
+        <span class="rule-name">EQL — Credential Dumping Sequence</span>
+        <span class="rule-sev sev-crit">T1003 · Credential Dumping</span>
+      </div>
+      <div class="rule-body"><span class="C">// Mimikatz-style LSASS access pattern</span>
+<span class="K">sequence by</span> host.name, process.entity_id <span class="K">with maxspan</span>=<span class="N">30s</span>
+  [process <span class="K">where</span>
+    event.type == <span class="S">"start"</span>
+    <span class="K">and not</span> process.code_signature.trusted == <span class="K">true</span>
+  ]
+  [process <span class="K">where</span>
+    event.category == <span class="S">"process"</span>
+    <span class="K">and</span> event.action == <span class="S">"accessed"</span>
+    <span class="K">and</span> winlog.event_data.TargetImage : <span class="S">"*lsass.exe"</span>
+    <span class="K">and</span> winlog.event_data.GrantedAccess : (
+        <span class="S">"0x1010"</span>, <span class="S">"0x1410"</span>, <span class="S">"0x1438"</span>, <span class="S">"0x143a"</span>
+    )
+  ]</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     TAB: THREAT HUNTING
+══════════════════════════════════ -->
+<div class="module z1" id="mod-hunting">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-accent"></div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// 4.4 — Proactive Threat Detection //</div>
+      <div class="sh-title">Threat Hunting</div>
+      <div class="sh-desc">Structured, hypothesis-driven hunting for threats that evade existing detections. The difference between reactive (alert-driven) and proactive (assumption-of-breach) security posture.</div>
+    </div>
+  </div>
+
+  <div class="hunt-pipe" style="margin-bottom:14px">
+    <div class="hp-step">
+      <div class="hp-n">01</div><div class="hp-icon">💡</div>
+      <div class="hp-name">HYPOTHESIS</div>
+      <div class="hp-desc">"Attacker has established persistence via scheduled tasks"</div>
+    </div>
+    <div class="hp-step">
+      <div class="hp-n">02</div><div class="hp-icon">🗺️</div>
+      <div class="hp-name">ATT&CK MAP</div>
+      <div class="hp-desc">T1053.005 — Scheduled Task/Job</div>
+    </div>
+    <div class="hp-step">
+      <div class="hp-n">03</div><div class="hp-icon">📊</div>
+      <div class="hp-name">DATA SOURCES</div>
+      <div class="hp-desc">Sysmon Ev1, Ev4698, Windows Ev4698/4702</div>
+    </div>
+    <div class="hp-step">
+      <div class="hp-n">04</div><div class="hp-icon">🔍</div>
+      <div class="hp-name">HUNT</div>
+      <div class="hp-desc">Query SIEM, pivot on findings</div>
+    </div>
+    <div class="hp-step">
+      <div class="hp-n">05</div><div class="hp-icon">🔬</div>
+      <div class="hp-name">TRIAGE</div>
+      <div class="hp-desc">Investigate hits, eliminate false positives</div>
+    </div>
+    <div class="hp-step">
+      <div class="hp-n">06</div><div class="hp-icon">🛡️</div>
+      <div class="hp-name">PRODUCTIZE</div>
+      <div class="hp-desc">Convert hunt to Sigma/KQL detection rule</div>
+    </div>
+  </div>
+
+  <!-- Hunt 1: Scheduled Tasks -->
+  <div class="card ca" style="margin-bottom:14px">
+    <div class="clabel">Hunt 01 — T1053.005</div>
+    <div class="ctitle" style="color:var(--amber)">SCHEDULED TASK PERSISTENCE HUNT</div>
+    <div class="cbody" style="margin-bottom:10px"><strong>Hypothesis:</strong> Attacker created a scheduled task pointing to a non-standard executable path (AppData, Temp, ProgramData) to maintain persistence.</div>
+    <div class="g2">
+      <div class="codeblock" style="--cb-accent:var(--amber)">
+<span class="lb">KQL</span>
+<span class="C">// Hunt: Scheduled tasks in suspicious paths</span>
+<span class="F">SecurityEvent</span>
+<span class="K">| where</span> EventID == <span class="N">4698</span>    <span class="C">// task created</span>
+<span class="K">   or</span>  EventID == <span class="N">4702</span>    <span class="C">// task modified</span>
+<span class="K">| extend</span> TaskXML = extractjson(
+    <span class="S">"$.EventData.TaskContent"</span>, EventData
+)
+<span class="K">| where</span> TaskXML <span class="K">contains</span> <span class="S">@"\AppData\"</span>
+    <span class="K">or</span>  TaskXML <span class="K">contains</span> <span class="S">@"\Temp\"</span>
+    <span class="K">or</span>  TaskXML <span class="K">contains</span> <span class="S">@"\ProgramData\"</span>
+    <span class="K">or</span>  TaskXML <span class="K">contains</span> <span class="S">"powershell"</span>
+    <span class="K">or</span>  TaskXML <span class="K">contains</span> <span class="S">"mshta"</span>
+<span class="K">| project</span> TimeGenerated,
+          Computer, SubjectUserName,
+          EventID, TaskXML
+<span class="K">| order by</span> TimeGenerated <span class="K">desc</span></div>
+      <div class="codeblock" style="--cb-accent:var(--amber)">
+<span class="lb">POWERSHELL — LIVE</span>
+<span class="C"># Hunt scheduled tasks on live system</span>
+<span class="F">Get-ScheduledTask</span> <span class="K">|</span>
+  <span class="F">Where-Object</span> { <span class="V">$_</span>.State <span class="K">-ne</span> <span class="S">'Disabled'</span> } <span class="K">|</span>
+  <span class="F">ForEach-Object</span> {
+    <span class="V">$task</span> = <span class="V">$_</span>
+    <span class="V">$action</span> = <span class="V">$task</span>.Actions | <span class="F">Select-Object</span> -First <span class="N">1</span>
+    [PSCustomObject]@{
+      Name     = <span class="V">$task</span>.TaskName
+      Path     = <span class="V">$task</span>.TaskPath
+      Execute  = <span class="V">$action</span>.Execute
+      Arguments= <span class="V">$action</span>.Arguments
+    }
+  } <span class="K">|</span>
+  <span class="F">Where-Object</span> {
+    <span class="V">$_</span>.Execute <span class="K">-match</span>
+      <span class="S">'AppData|Temp|ProgramData|powershell|mshta|wscript'</span>
+  } <span class="K">|</span>
+  <span class="F">Format-Table</span> -AutoSize</div>
+    </div>
+  </div>
+
+  <!-- Hunt 2: LOLBin abuse -->
+  <div class="card cl" style="margin-bottom:14px">
+    <div class="clabel">Hunt 02 — T1218 / T1059</div>
+    <div class="ctitle" style="color:var(--lime2)">LOLBIN ABUSE HUNT</div>
+    <div class="cbody" style="margin-bottom:10px"><strong>Hypothesis:</strong> Attacker is using signed Windows binaries (LOLBins) to execute malicious code, evading application whitelisting.</div>
+    <div class="codeblock" style="--cb-accent:var(--lime2)">
+<span class="lb">KQL</span>
+<span class="C">// Hunt: Living-Off-The-Land Binary (LOLBin) execution with suspicious patterns</span>
+<span class="K">let</span> <span class="V">lolbins</span> = dynamic([
+    <span class="S">"mshta.exe"</span>, <span class="S">"regsvr32.exe"</span>, <span class="S">"certutil.exe"</span>, <span class="S">"wmic.exe"</span>,
+    <span class="S">"bitsadmin.exe"</span>, <span class="S">"msiexec.exe"</span>, <span class="S">"cmstp.exe"</span>, <span class="S">"installutil.exe"</span>,
+    <span class="S">"regasm.exe"</span>, <span class="S">"regsvcs.exe"</span>, <span class="S">"rundll32.exe"</span>, <span class="S">"odbcconf.exe"</span>
+]);
+<span class="K">let</span> <span class="V">suspicious_patterns</span> = dynamic([
+    <span class="S">"http"</span>, <span class="S">"\\\\10."</span>, <span class="S">"\\\\192."</span>,    <span class="C">// network paths</span>
+    <span class="S">"AppData"</span>, <span class="S">"Temp"</span>, <span class="S">"ProgramData"</span>, <span class="C">// user-writable paths</span>
+    <span class="S">"decode"</span>, <span class="S">"urlcache"</span>, <span class="S">"split"</span>     <span class="C">// certutil abuse patterns</span>
+]);
+
+<span class="F">DeviceProcessEvents</span>
+<span class="K">| where</span> FileName <span class="K">in~</span> (<span class="V">lolbins</span>)
+<span class="K">| where</span> ProcessCommandLine <span class="K">has_any</span> (<span class="V">suspicious_patterns</span>)
+<span class="K">| summarize</span> count() <span class="K">by</span>
+    DeviceName, FileName,
+    ProcessCommandLine, InitiatingProcessFileName
+<span class="K">| order by</span> count_ <span class="K">desc</span></div>
+  </div>
+
+  <!-- Hunt 3: Domain Controller recon -->
+  <div class="card cc">
+    <div class="clabel">Hunt 03 — T1087 / T1069</div>
+    <div class="ctitle" style="color:var(--cyan2)">ACTIVE DIRECTORY RECONNAISSANCE HUNT</div>
+    <div class="cbody" style="margin-bottom:10px"><strong>Hypothesis:</strong> Attacker is performing AD recon to identify targets for lateral movement and privilege escalation.</div>
+    <div class="codeblock" style="--cb-accent:var(--cyan2)">
+<span class="lb">KQL</span>
+<span class="C">// Hunt: LDAP queries and AD enum activity</span>
+<span class="F">IdentityQueryEvents</span>
+<span class="K">| where</span> QueryType <span class="K">in</span> (
+    <span class="S">"LdapSearch"</span>, <span class="S">"SamrSamEnumerateDomainsInSamServer"</span>,
+    <span class="S">"Kerberos TGT"</span>
+)
+<span class="K">| summarize</span>
+    QueryCount    = count(),
+    UniqueTargets = dcount(QueryTarget),
+    QueryTypes    = make_set(QueryType)
+    <span class="K">by</span> DeviceName, AccountName, bin(TimeGenerated, <span class="N">1h</span>)
+<span class="K">| where</span> QueryCount > <span class="N">50</span>
+<span class="K">| where</span> UniqueTargets > <span class="N">10</span>
+<span class="K">| union</span> (
+    <span class="C">// net.exe enumeration commands</span>
+    <span class="F">DeviceProcessEvents</span>
+    <span class="K">| where</span> FileName <span class="K">in~</span> (<span class="S">"net.exe"</span>, <span class="S">"net1.exe"</span>)
+    <span class="K">| where</span> ProcessCommandLine <span class="K">has_any</span> (
+        <span class="S">"group"</span>, <span class="S">"user"</span>, <span class="S">"accounts"</span>, <span class="S">"localgroup"</span>,
+        <span class="S">"domain admins"</span>, <span class="S">"enterprise admins"</span>
+    )
+    <span class="K">| project</span> TimeGenerated, DeviceName,
+              AccountName = InitiatingProcessAccountName,
+              QueryCount = <span class="N">1</span>, UniqueTargets = <span class="N">1</span>,
+              QueryTypes = pack_array(ProcessCommandLine)
+)
+<span class="K">| order by</span> QueryCount <span class="K">desc</span></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     TAB: FORENSICS
+══════════════════════════════════ -->
+<div class="module z1" id="mod-forensics">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-accent"></div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// 4.5 — Digital Forensics //</div>
+      <div class="sh-title">Forensic Investigation</div>
+      <div class="sh-desc">Evidence-preserving investigation techniques — artifact collection, timeline reconstruction, registry forensics, and Windows/Linux artifact locations that malware leaves behind.</div>
+    </div>
+  </div>
+
+  <div class="itabs">
+    <button class="itab active" onclick="iTab('artifacts',this)">Windows Artifacts</button>
+    <button class="itab" onclick="iTab('timeline',this)">Timeline Analysis</button>
+    <button class="itab" onclick="iTab('linux-artifacts',this)">Linux Artifacts</button>
+  </div>
+
+  <div class="ipanel active" id="ip-artifacts">
+    <div class="card ca" style="margin-bottom:14px">
+      <div class="clabel">Windows Forensic Artifacts</div>
+      <div class="ctitle" style="color:var(--amber)">HIGH-VALUE ARTIFACT LOCATIONS</div>
+      <table class="dTable">
+        <tr><th>ARTIFACT</th><th>LOCATION</th><th>WHAT IT TELLS YOU</th><th>TOOL</th></tr>
+        <tr>
+          <td><strong>Prefetch</strong></td>
+          <td><code>C:\Windows\Prefetch\*.pf</code></td>
+          <td>Executables that ran (last 8 timestamps, run count)</td>
+          <td>WinPrefetchView, PECmd</td>
+        </tr>
+        <tr>
+          <td><strong>Shimcache</strong></td>
+          <td>Registry: <code>HKLM\SYSTEM\...\AppCompatCache</code></td>
+          <td>Executables that existed on disk (even if deleted)</td>
+          <td>AppCompatCacheParser</td>
+        </tr>
+        <tr>
+          <td><strong>AmCache</strong></td>
+          <td><code>C:\Windows\AppCompat\Programs\Amcache.hve</code></td>
+          <td>Execution history with hashes — survived deletion</td>
+          <td>AmcacheParser</td>
+        </tr>
+        <tr>
+          <td><strong>MFT ($MFT)</strong></td>
+          <td>NTFS root — every file ever created</td>
+          <td>Full file system timeline, timestamps, deleted files</td>
+          <td>MFTECmd, Autopsy</td>
+        </tr>
+        <tr>
+          <td><strong>LNK Files</strong></td>
+          <td><code>%APPDATA%\Microsoft\Windows\Recent\</code></td>
+          <td>Recently opened files — even if target deleted</td>
+          <td>LECmd</td>
+        </tr>
+        <tr>
+          <td><strong>Jump Lists</strong></td>
+          <td><code>%APPDATA%\...\AutomaticDestinations\</code></td>
+          <td>Application usage history per app</td>
+          <td>JLECmd</td>
+        </tr>
+        <tr>
+          <td><strong>Browser History</strong></td>
+          <td>Chrome: <code>%APPDATA%\...\Chrome\User Data\Default\History</code></td>
+          <td>Download URLs, C2 site visits, phishing page access</td>
+          <td>Hindsight, DB Browser</td>
+        </tr>
+        <tr>
+          <td><strong>USN Journal</strong></td>
+          <td>NTFS: <code>$Extend\$UsnJrnl</code></td>
+          <td>File change log — see files created/deleted recently</td>
+          <td>MFTECmd</td>
+        </tr>
+        <tr>
+          <td><strong>SRUM</strong></td>
+          <td><code>C:\Windows\System32\sru\SRUDB.dat</code></td>
+          <td>30 days of network usage per app, process runtime</td>
+          <td>SrumECmd</td>
+        </tr>
+        <tr>
+          <td><strong>Registry Hives</strong></td>
+          <td><code>C:\Windows\System32\config\</code></td>
+          <td>SAM (hashes), SOFTWARE, SYSTEM, NTUSER.DAT</td>
+          <td>RegRipper, RECmd</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card cl">
+      <div class="clabel">Evidence of Execution</div>
+      <div class="ctitle" style="color:var(--lime2)">ERIC ZIMMERMAN TOOLS — COLLECTION SCRIPT</div>
+      <div class="codeblock" style="--cb-accent:var(--lime2)">
+<span class="lb">POWERSHELL</span>
+<span class="C"># Collect key forensic artifacts using EZ Tools (Eric Zimmerman)</span>
+<span class="C"># Download: https://ericzimmermantools.com</span>
+
+<span class="K">param</span>([string]<span class="V">$OutDir</span> = <span class="S">"C:\ForensicOutput"</span>)
+<span class="F">New-Item</span> -Path <span class="V">$OutDir</span> -ItemType Directory -Force | <span class="F">Out-Null</span>
+
+<span class="C"># Prefetch — execution history</span>
+<span class="F">.\PECmd.exe</span> -d C:\Windows\Prefetch --csv <span class="V">$OutDir</span>\prefetch.csv
+
+<span class="C"># AmCache — file execution with hashes</span>
+<span class="F">.\AmcacheParser.exe</span> -f <span class="S">"C:\Windows\AppCompat\Programs\Amcache.hve"</span> `
+    --csv <span class="V">$OutDir</span>\amcache.csv
+
+<span class="C"># Shimcache — even deleted executables</span>
+<span class="F">.\AppCompatCacheParser.exe</span> -f <span class="S">"C:\Windows\System32\config\SYSTEM"</span> `
+    --csv <span class="V">$OutDir</span>\shimcache.csv
+
+<span class="C"># MFT — complete file system timeline</span>
+<span class="F">.\MFTECmd.exe</span> -f <span class="S">"C:\`$MFT"</span> --csv <span class="V">$OutDir</span>\mft.csv
+
+<span class="C"># Registry: Run keys, UserAssist, MRU lists</span>
+<span class="F">.\RECmd.exe</span> -d C:\Windows\System32\config `
+    --bn .\BatchExamples\Kroll_Batch.reb `
+    --csv <span class="V">$OutDir</span>\registry.csv
+
+<span class="C"># SRUM — 30-day network/process usage</span>
+<span class="F">.\SrumECmd.exe</span> -f <span class="S">"C:\Windows\System32\sru\SRUDB.dat"</span> `
+    --csv <span class="V">$OutDir</span>\srum.csv
+
+<span class="F">Write-Host</span> <span class="S">"[+] Artifacts collected to: $OutDir"</span> -ForegroundColor Green</div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-timeline">
+    <div class="card ca" style="margin-bottom:14px">
+      <div class="clabel">Timeline Reconstruction</div>
+      <div class="ctitle" style="color:var(--amber)">SUPER TIMELINE WITH PLASO / LOG2TIMELINE</div>
+      <div class="codeblock" style="--cb-accent:var(--amber)">
+<span class="lb">BASH</span>
+<span class="C"># Create a super timeline from a disk image or live system</span>
+<span class="C"># Aggregates: MFT, event logs, prefetch, registry, browser history</span>
+
+<span class="C"># Step 1: Create Plaso storage file from disk image</span>
+<span class="F">log2timeline.py</span> --partitions all \
+    /output/case001.plaso \
+    /mnt/evidence/disk.raw
+
+<span class="C"># Step 2: Filter and export to CSV timeline</span>
+<span class="F">psort.py</span> -o l2tcsv \
+    -w /output/timeline.csv \
+    /output/case001.plaso \
+    "date &gt; '2025-01-01' AND date &lt; '2025-01-15'"
+
+<span class="C"># Step 3: Analyze with Timesketch (web UI) or grep</span>
+<span class="C"># Find first execution of malware sample</span>
+<span class="F">grep</span> -i "malware_sample.exe" timeline.csv | head -20
+
+<span class="C"># Find all activity in 30min window around known IOC time</span>
+<span class="F">awk</span> -F',' '$1 &gt;= "2025-01-10T14:00" && $1 &lt;= "2025-01-10T14:30"' \
+    timeline.csv | <span class="F">sort</span> -t',' -k1
+
+<span class="C"># Timeline key fields: datetime | type | host | message</span>
+<span class="C"># Correlate: file written → prefetch entry → network connection</span>
+<span class="C"># That 3-event sequence confirms execution + C2</span></div>
+    </div>
+    <div class="card cl">
+      <div class="clabel">MACB Timestamps</div>
+      <div class="ctitle" style="color:var(--lime2)">TIMESTAMP ANALYSIS & TIMESTOMPING</div>
+      <div class="codeblock" style="--cb-accent:var(--lime2)">
+<span class="C"># MACB timestamps: Modified, Accessed, Created, $MFT Changed</span>
+<span class="C"># Windows NTFS stores TWO sets: $STANDARD_INFO and $FILE_NAME</span>
+
+<span class="C"># Normal file: all timestamps consistent between both attributes</span>
+<span class="C"># Timestomped file: $STANDARD_INFO modified, $FILE_NAME unchanged</span>
+
+<span class="C"># Detection of timestomping:</span>
+<span class="C"># $STANDARD_INFO created date EARLIER than $FILE_NAME created date</span>
+<span class="C"># → Impossible unless timestamps were backdated (timestomping)</span>
+
+<span class="C"># Analyze with MFTECmd or Autopsy</span>
+<span class="F">.\MFTECmd.exe</span> -f C:\<span class="V">$MFT</span> --csv out\ --vss
+<span class="C"># Column: SI_Created vs FN_Created</span>
+<span class="C"># If SI &lt; FN → timestomped → malware artifact</span>
+
+<span class="C"># Linux equivalent: stat command shows all timestamps</span>
+<span class="F">stat</span> /suspicious/binary
+<span class="C"># File: /suspicious/binary</span>
+<span class="C"># Access: 2025-01-10 14:23:11 ← matches system log entries</span>
+<span class="C"># Modify: 2020-01-01 00:00:00 ← year 2020 is suspicious on 2025 system</span>
+<span class="C"># Change: 2025-01-10 14:23:11 ← inode change = actual write time</span>
+<span class="C"># Discrepancy between Modify and Change = timestomping</span></div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-linux-artifacts">
+    <div class="card cl" style="margin-bottom:14px">
+      <div class="clabel">Linux Forensic Artifacts</div>
+      <div class="ctitle" style="color:var(--lime2)">KEY ARTIFACT LOCATIONS</div>
+      <table class="dTable">
+        <tr><th>ARTIFACT</th><th>PATH</th><th>INVESTIGATIVE VALUE</th></tr>
+        <tr><td><strong>Auth log</strong></td><td><code>/var/log/auth.log</code></td><td>SSH logons, sudo use, PAM events, brute force</td></tr>
+        <tr><td><strong>Syslog</strong></td><td><code>/var/log/syslog</code></td><td>General system events, cron execution, service starts</td></tr>
+        <tr><td><strong>Shell history</strong></td><td><code>~/.bash_history</code> <code>~/.zsh_history</code></td><td>Commands executed — often uncleared by attackers</td></tr>
+        <tr><td><strong>Crontabs</strong></td><td><code>/var/spool/cron/crontabs/</code> <code>/etc/cron.d/</code></td><td>Persistence via scheduled jobs</td></tr>
+        <tr><td><strong>Systemd units</strong></td><td><code>/etc/systemd/system/</code></td><td>Malicious service persistence</td></tr>
+        <tr><td><strong>ld.so.preload</strong></td><td><code>/etc/ld.so.preload</code></td><td>Should be EMPTY — rootkit injection if not</td></tr>
+        <tr><td><strong>SSH keys</strong></td><td><code>~/.ssh/authorized_keys</code></td><td>Backdoor keys added by attacker</td></tr>
+        <tr><td><strong>/tmp & /var/tmp</strong></td><td>World-writable directories</td><td>Common malware staging area</td></tr>
+        <tr><td><strong>wtmp / lastlog</strong></td><td><code>/var/log/wtmp</code></td><td>Login history — use <code>last</code> command</td></tr>
+        <tr><td><strong>Kernel modules</strong></td><td><code>/lib/modules/</code></td><td>Rootkit LKMs — compare <code>lsmod</code> vs disk</td></tr>
+        <tr><td><strong>Deleted files</strong></td><td>Via <code>lsof +L1</code></td><td>Files open but deleted — malware hiding itself</td></tr>
+      </table>
+    </div>
+    <div class="card cc">
+      <div class="clabel">Deleted File Recovery</div>
+      <div class="ctitle" style="color:var(--cyan2)">RECOVER MALWARE FROM DELETED FILES</div>
+      <div class="codeblock" style="--cb-accent:var(--cyan2)">
+<span class="lb">BASH</span>
+<span class="C"># Malware often deletes itself after execution</span>
+<span class="C"># But if a process still has the file open, it's recoverable via /proc</span>
+
+<span class="C"># Find processes with deleted files open</span>
+<span class="F">lsof</span> +L1 | <span class="F">grep</span> deleted
+<span class="C"># Output example:</span>
+<span class="C"># evil_proc 1337 root 5r REG 8,1 0 1337 /tmp/.hidden (deleted)</span>
+
+<span class="C"># Recover from /proc filesystem</span>
+<span class="C"># PID 1337, file descriptor 5</span>
+<span class="F">cp</span> /proc/1337/fd/5 /evidence/recovered_malware
+<span class="F">sha256sum</span> /evidence/recovered_malware
+<span class="C"># Now you have the binary even though it was "deleted"</span>
+
+<span class="C"># Recover file content from ext4 via debugfs</span>
+<span class="F">debugfs</span> /dev/sda1
+<span class="C"># debugfs commands:</span>
+<span class="H">  lsdel</span>               <span class="C"># list deleted inodes</span>
+<span class="H">  undel &lt;inode&gt; /output/file</span>  <span class="C"># recover if still allocated</span>
+
+<span class="C"># Recover via strings on raw disk image (last resort)</span>
+<span class="F">strings</span> /dev/sda1 | <span class="F">grep</span> -A 20 <span class="S">"ELF"</span>
+<span class="F">foremost</span> -i disk.raw -t exe,elf -o /recovered/  <span class="C"># file carving</span></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     TAB: IR PLAYBOOKS
+══════════════════════════════════ -->
+<div class="module z1" id="mod-playbooks">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-accent"></div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// 4.6 — Incident Response //</div>
+      <div class="sh-title">IR Playbooks</div>
+      <div class="sh-desc">Structured response procedures for the most common incident types. Each playbook defines decision gates, evidence preservation steps, containment actions, and escalation paths.</div>
+    </div>
+  </div>
+
+  <div class="itabs">
+    <button class="itab active" onclick="iTab('pb-ransom',this)">Ransomware</button>
+    <button class="itab" onclick="iTab('pb-apt',this)">APT / Breach</button>
+    <button class="itab" onclick="iTab('pb-phish',this)">Phishing</button>
+  </div>
+
+  <div class="ipanel active" id="ip-pb-ransom">
+    <div class="alert a-err"><strong>RANSOMWARE INCIDENT:</strong> Do NOT reboot affected systems. Do NOT attempt to decrypt. Preserve evidence before any remediation. Notify legal/counsel before any external communication.</div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="card cr">
+        <div class="clabel">Phase 1 — First 30 Minutes</div>
+        <div class="ctitle" style="color:var(--red)">DETECT & CONTAIN</div>
+        <div class="codeblock" style="--cb-accent:var(--red)">
+<span class="R">IMMEDIATE ACTIONS (first 15 min)</span>
+
+<span class="N">1.</span> ISOLATE affected hosts
+   → Network isolation (firewall rule or physical disconnect)
+   → Do NOT power off (memory evidence!)
+   → Keep VPN/RDP for responder access
+
+<span class="N">2.</span> ASSESS blast radius
+   → How many hosts show encrypted files?
+   → Any domain controllers affected?
+   → Any backups accessible from network?
+
+<span class="N">3.</span> STOP the spread
+   → Block C2 domains/IPs at perimeter
+   → Disable affected user accounts
+   → Kill malicious processes if still running:
+     taskkill /PID &lt;pid&gt; /F
+     pkill -f malware_name
+
+<span class="N">4.</span> PRESERVE evidence
+   → Run IR collection script (Module 01)
+   → Take memory dump (winpmem)
+   → Screenshot ransom note + wallpaper
+   → Log everything with timestamps</div>
+      </div>
+      <div class="card cr">
+        <div class="clabel">Phase 2 — First 4 Hours</div>
+        <div class="ctitle" style="color:var(--red)">INVESTIGATE</div>
+        <div class="codeblock" style="--cb-accent:var(--red)">
+<span class="R">INVESTIGATION PRIORITIES</span>
+
+<span class="N">1.</span> IDENTIFY PATIENT ZERO
+   → First system with encrypted files (MFT timestamps)
+   → First NXDOMAIN burst (DNS logs)
+   → First unusual process execution (Sysmon Ev1)
+
+<span class="N">2.</span> ESTABLISH TIMELINE
+   → Delivery (phishing email timestamp)
+   → Execution (first malware process)
+   → Lateral movement (logon events 4624 to other hosts)
+   → Encryption start (mass FileCreate events)
+
+<span class="N">3.</span> DETERMINE PERSISTENCE
+   → Check all Run keys on all hosts
+   → Check scheduled tasks
+   → Check services
+   → Check WMI subscriptions
+
+<span class="N">4.</span> COLLECT IOCs
+   → Malware hashes
+   → C2 IPs and domains
+   → Ransom note filename pattern
+   → Encrypted file extension (.locked etc.)
+   → Mutex name (from memory forensics)</div>
+      </div>
+    </div>
+    <div class="card ca">
+      <div class="clabel">Decision Tree</div>
+      <div class="ctitle" style="color:var(--amber)">TO PAY OR NOT TO PAY — DECISION FRAMEWORK</div>
+      <div class="codeblock" style="--cb-accent:var(--amber)">
+<span class="Y">ASSESSMENT QUESTIONS (answer before any payment decision):</span>
+
+<span class="N">1.</span> Do we have working backups? (offline, tested, recent)
+    YES → Restore from backup. No payment needed.
+    NO  → Continue assessment
+
+<span class="N">2.</span> Is there a free decryptor available?
+    Check: https://www.nomoreransom.org
+    YES → Use it. No payment needed.
+    NO  → Continue
+
+<span class="N">3.</span> Was data exfiltrated before encryption? (double extortion)
+    → Check network logs for large outbound transfers
+    → Check threat actor's leak site
+
+<span class="N">4.</span> What is the business impact of non-recovery?
+    → Calculate downtime cost vs ransom amount
+    → Involve legal, executive, cyber insurer
+
+<span class="Y">LEGAL CONSIDERATIONS:</span>
+   → Paying may violate OFAC sanctions if attacker is sanctioned group
+   → Check: https://home.treasury.gov/policy-issues/financial-sanctions
+   → Consult legal counsel before any payment
+
+<span class="G">TECHNICAL NOTE:</span>
+   → Payment does NOT guarantee decryption
+   → Ransomware-as-a-Service operators have poor customer service
+   → Decryptors often corrupt files or fail on large sets</div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-pb-apt">
+    <div class="alert a-warn"><strong>APT / BREACH:</strong> Assume the attacker is watching. Do NOT alert them via noisy containment. Build a parallel clean environment for communication. The goal is understand the full scope before eviction.</div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="card ca">
+        <div class="clabel">APT Response — Phase 1</div>
+        <div class="ctitle" style="color:var(--amber)">SCOPING & SILENT INVESTIGATION</div>
+        <div class="codeblock" style="--cb-accent:var(--amber)">
+<span class="Y">OBJECTIVE: Understand scope without tipping off attacker</span>
+
+<span class="N">1.</span> ESTABLISH SECURE COMMS
+   → Out-of-band communication (personal phones, Signal)
+   → Do NOT use compromised email/Slack for IR
+   → Create fresh accounts in cloud tenant if needed
+
+<span class="N">2.</span> PASSIVE HUNTING (no action yet)
+   → Query SIEM for IOCs across ALL hosts (not just known ones)
+   → Map all C2 beaconing from DNS/proxy logs
+   → Identify ALL compromised accounts (logon from C2 IP)
+   → Do NOT touch malware yet — attacker may have tripwires
+
+<span class="N">3.</span> IDENTIFY ATTACKER OBJECTIVES
+   → What data did they access? (file access logs, DLP)
+   → Where did they pivot to? (lateral movement map)
+   → Do they have persistence on critical systems?
+   → Have they reached AD / domain controllers?
+
+<span class="N">4.</span> DOCUMENT EVERYTHING
+   → Full network diagram of attacker's path
+   → Timeline from first compromise to discovery
+   → All tools/techniques used (ATT&CK mapping)</div>
+      </div>
+      <div class="card ca">
+        <div class="clabel">APT Response — Phase 2</div>
+        <div class="ctitle" style="color:var(--amber)">COORDINATED EVICTION</div>
+        <div class="codeblock" style="--cb-accent:var(--amber)">
+<span class="Y">EVICTION: Do it all at once. Give attacker no time to react.</span>
+
+<span class="N">1.</span> PRE-EVICTION CHECKLIST
+   → All persistence mechanisms identified and documented
+   → New credentials prepared for ALL privileged accounts
+   → New domain admin accounts pre-created (offline)
+   → Legal/law enforcement notified if required
+   → Backup integrity verified (offline, isolated)
+
+<span class="N">2.</span> SIMULTANEOUS EVICTION (T=0)
+   → Block all C2 at perimeter (all identified IPs/domains)
+   → Force password reset ALL domain accounts
+   → Revoke ALL Kerberos tickets: klist purge
+   → Rotate ALL service account credentials
+   → Remove ALL persistence (run keys, tasks, services)
+   → Reinstall compromised hosts from known-good image
+
+<span class="N">3.</span> KRBTGT KEY ROTATION (if DC compromised)
+   → Reset KRBTGT password TWICE (defeats golden tickets)
+   → Interval: 10 hours between resets (Kerberos ticket lifetime)
+   → This invalidates all existing Kerberos tickets
+
+<span class="N">4.</span> POST-EVICTION MONITORING
+   → 30-day elevated monitoring for reinfection attempts
+   → Watch for attacker returning via new vector</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-pb-phish">
+    <div class="g2">
+      <div class="card cl">
+        <div class="clabel">Phishing Response</div>
+        <div class="ctitle" style="color:var(--lime2)">EMAIL INCIDENT PLAYBOOK</div>
+        <div class="codeblock" style="--cb-accent:var(--lime2)">
+<span class="G">PHISHING TRIAGE WORKFLOW</span>
+
+<span class="N">1.</span> COLLECT EVIDENCE
+   → Get original email with full headers
+   → Download attachment to isolated sandbox
+   → Extract URLs from email body
+   → Do NOT click links from primary workstation
+
+<span class="N">2.</span> ANALYZE EMAIL HEADERS
+   Received: headers (trace path)
+   Return-Path: vs From: mismatch → spoofing
+   DKIM-Signature: pass/fail
+   SPF: pass/fail/softfail
+   DMARC: pass/fail/none
+
+<span class="N">3.</span> SANDBOX ATTACHMENT/URL
+   Any.run, Hybrid Analysis, or local Cuckoo
+   → Capture: dropped files, network C2, registry
+
+<span class="N">4.</span> ASSESS USER IMPACT
+   → Did user click? (email gateway click tracking)
+   → Did user enter credentials? (check auth logs)
+   → Did malware execute? (EDR alert, Sysmon events)
+
+<span class="N">5.</span> HUNT FOR OTHER RECIPIENTS
+   PowerShell / Microsoft Graph API:
+   Search-UnifiedAuditLog -RecordType ExchangeItem
+   -Operations "Send" — find all sent copies</div>
+      </div>
+      <div class="card cl">
+        <div class="clabel">Phishing — Remediation</div>
+        <div class="ctitle" style="color:var(--lime2)">CONTAINMENT & RECOVERY</div>
+        <div class="codeblock" style="--cb-accent:var(--lime2)">
+<span class="G">REMEDIATION STEPS</span>
+
+<span class="N">1.</span> PURGE EMAIL FROM ALL MAILBOXES
+   PowerShell (Exchange Online):
+   <span class="F">Search-Mailbox</span> -SearchQuery <span class="S">"subject:'Urgent Invoice'"</span> `
+       -DeleteContent -Force
+   <span class="C"># Or: Compliance Center → Content Search → Purge</span>
+
+<span class="N">2.</span> BLOCK SENDER/DOMAIN
+   → Add to Exchange blocked senders
+   → Submit URL to Microsoft/Google Safe Browsing
+   → Block domain at DNS/proxy layer
+
+<span class="N">3.</span> IF USER CLICKED/ENTERED CREDS:
+   → Force password reset immediately
+   → Revoke all active sessions (invalidate tokens)
+   → Enable MFA if not already enabled
+   → Check for mail forwarding rules (attacker persistence)
+   → Audit inbox rules: New-InboxRule backdoor common
+
+<span class="N">4.</span> IF MALWARE EXECUTED:
+   → Escalate to full IR playbook
+   → Isolate the endpoint
+   → Preserve memory image
+   → Follow endpoint IR procedure
+
+<span class="N">5.</span> USER COMMUNICATION
+   → Notify user (without blame)
+   → Reinforce reporting culture
+   → Brief department heads if sensitive data at risk</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     TAB: QUIZ
+══════════════════════════════════ -->
+<div class="module z1" id="mod-quiz">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-accent"></div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// 4.7 — Competency Verification //</div>
+      <div class="sh-title">Knowledge Check</div>
+      <div class="sh-desc">Ten scenario-based questions covering detection methodology, EDR, Sigma authoring, SIEM queries, threat hunting, forensics, and IR playbooks.</div>
+    </div>
+  </div>
+
+  <div id="quiz-container"></div>
+
+  <div class="score-box">
+    <div style="font-family:var(--mono);font-size:.55rem;letter-spacing:2px;color:var(--dim);margin-bottom:6px">SCORE</div>
+    <div id="score-text" style="font-family:var(--mono);font-size:.8rem;color:var(--amber)"></div>
+    <div class="score-track"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+    <button class="reset-btn" onclick="resetQuiz()">RESET QUIZ</button>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ── Tab switching ──────────────────────────────────
+function sw(id, btn) {
+  document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
+  document.getElementById('mod-' + id).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function iTab(id, btn) {
+  const mod = btn.closest('.module');
+  mod.querySelectorAll('.itab').forEach(t => t.classList.remove('active'));
+  mod.querySelectorAll('.ipanel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ip-' + id).classList.add('active');
+}
+
+// ── Quiz ──────────────────────────────────────────
+const questions = [
+  {
+    q: "The Pyramid of Pain concept suggests that blocking file hashes is a low-value detection strategy. Why, and what approach should you prioritize instead?",
+    opts: [
+      "Hash blocking is computationally expensive — prioritize IP blocking for efficiency",
+      "Attackers trivially recompile or pad binaries to change hashes, making hash blocks useless within minutes. Prioritize TTP-level behavioral detections — detecting how malware acts is much harder for attackers to change than what a specific binary looks like",
+      "Hash blocking is actually the most effective — always use it as the primary detection layer",
+      "Hash blocking should be replaced by domain blocking, which is more resilient"
+    ],
+    correct: 1,
+    explain: "<strong>Pyramid of Pain — higher = more attacker pain.</strong> File hashes sit at the bottom — a single bit change (add a null byte, recompile) creates a completely new hash. An attacker can do this in 30 seconds. TTP-level detections (behaviors like 'Office process spawning PowerShell with encoded command') require the attacker to fundamentally change their tooling and methodology — far more expensive. The ideal detection stack combines: hash/IP blocks (fast, cheap, low-friction) at the bottom, with behavioral Sigma/YARA/ML rules targeting TTPs at the top. The top of the pyramid should be your investment focus."
+  },
+  {
+    q: "Your Sigma rule fires with a very high false positive rate. Analysts are ignoring it. What is the most effective first step to fix it?",
+    opts: [
+      "Lower the severity level from HIGH to LOW so analysts know to deprioritize it",
+      "Delete the rule and write a new one from scratch",
+      "Add a filter_legit block that excludes known-good processes/paths. Then analyze the remaining true positives to tighten the selection logic",
+      "Change the logsource to a different log category to reduce data volume"
+    ],
+    correct: 2,
+    explain: "<strong>Sigma rule tuning — the filter approach.</strong> High false positive rates kill analyst trust and cause alert fatigue. The correct approach: (1) Collect a week of FP data — which processes/paths generate false alerts? (2) Add a <code>filter_legit</code> block excluding those specific patterns with AND NOT in the condition. (3) If FP rate is still high after filtering, tighten the selection logic — require more conditions to be true simultaneously (more AND clauses). Never lower severity to hide the problem — that just ensures true positives are also missed. A good rule should have <5% FP rate in production."
+  },
+  {
+    q: "During threat hunting, you query DNS logs and find a host making 847 DNS queries in one hour, with 92% returning NXDOMAIN, to domains like 'k3mq9xzt4pw2.com', 'n8vb2cjhm6xr.com'. What is this, and what is the immediate action?",
+    opts: [
+      "Normal browser behavior — modern web pages make hundreds of DNS queries",
+      "DGA botnet activity — the host is infected and cycling through generated C2 domains. Immediately isolate the host, preserve memory, extract the malware, and identify the DGA algorithm to sinkhole future domains",
+      "DNS cache poisoning attack against the host — flush DNS cache and update resolver",
+      "Antivirus performing domain reputation lookups — whitelist the process"
+    ],
+    correct: 1,
+    explain: "<strong>DGA (Domain Generation Algorithm) botnet confirmed.</strong> Three definitive signals: (1) 92% NXDOMAIN rate — the bot cycles through generated domains, most don't exist (attacker only registers 1-2), (2) High-entropy, short random-looking domain names — not human-typed, algorithmically generated, (3) Volume — 847 queries/hour is far above any legitimate software. Immediate actions: isolate host (prevent actual C2 if attacker registers a new domain), preserve memory (Volatility to extract malware and DGA seed), analyze the malware to identify the DGA family (Conficker, GameOver Zeus etc.), pre-generate future domains and sinkhole them to map all infected hosts."
+  },
+  {
+    q: "A Sigma rule uses `condition: selection and not filter_legit`. What happens if filter_legit matches but selection does NOT?",
+    opts: [
+      "The rule fires — because NOT filter_legit is TRUE",
+      "The rule does NOT fire — selection must be TRUE first. If selection is false, the condition short-circuits regardless of filter_legit",
+      "It depends on the SIEM backend conversion",
+      "The rule throws a syntax error — conditions cannot combine AND and NOT"
+    ],
+    correct: 1,
+    explain: "<strong>Boolean short-circuit evaluation in Sigma conditions.</strong> The condition <code>selection AND NOT filter_legit</code> requires BOTH: (1) selection must be TRUE, AND (2) filter_legit must be FALSE. If selection is FALSE, the entire condition is FALSE regardless of filter_legit — because FALSE AND anything = FALSE. This matters operationally: filter blocks only apply when the selection has already matched. This is intentional — filters are only relevant when the selection fires. If you want 'fire unless certain processes regardless of selection', use a different rule structure: <code>selection AND NOT (filter_legit)</code> vs <code>NOT filter_legit AND selection</code> — same Boolean result but clarity matters for reviewers."
+  },
+  {
+    q: "During forensic analysis, you notice a file's $STANDARD_INFORMATION Created timestamp is January 2020, but its $FILE_NAME Created timestamp is January 2025. The system was built in 2024. What does this indicate?",
+    opts: [
+      "The file was legitimately created in 2020 and the system was rebuilt around it",
+      "Timestomping — the attacker backdated the $STANDARD_INFORMATION timestamps to make the malware appear old. $FILE_NAME timestamps are harder to modify and reveal the true creation time (2025)",
+      "NTFS timestamp corruption — run chkdsk to repair",
+      "The file was copied from an old backup — normal behavior for patch management"
+    ],
+    correct: 1,
+    explain: "<strong>Timestomping detected via NTFS dual-timestamp analysis.</strong> Windows NTFS stores two sets of timestamps per file: $STANDARD_INFORMATION (shown by dir/Explorer — easily modified via SetFileTime API) and $FILE_NAME (stored in the directory entry — much harder to modify, requires kernel-level access). When $SI_Created < $FN_Created, it's impossible naturally — the file record can't precede the file name entry. This discrepancy definitively indicates timestomping (T1070.006). Tool: MFTECmd with the --csv flag — compare SI_Created vs FN_Created columns. The $FN timestamp reveals the actual file drop time: January 2025."
+  },
+  {
+    q: "You're writing a KQL query to detect C2 beaconing. You measure 'stdev of connection timestamps' and filter for < 5.0. Why is low standard deviation significant?",
+    opts: [
+      "Low standard deviation means few connections — fewer than 5 total, indicating low volume C2",
+      "Low standard deviation means the connection intervals are highly regular/periodic — malware beacons on a fixed schedule (with jitter). Legitimate software does not communicate with external hosts on perfectly regular intervals",
+      "Low standard deviation means the connection is encrypted — TLS handshakes are shorter",
+      "Low standard deviation filters out high-volume noise from browsers — only keeps idle connections"
+    ],
+    correct: 1,
+    explain: "<strong>Statistical periodicity analysis for beacon detection.</strong> Standard deviation measures how much values vary from the mean. In connection timing: Low stddev = highly regular intervals (e.g., exactly 60s ± 2s). This is the mathematical signature of a beacon. Human-driven or legitimate software traffic is bursty and irregular (high stddev). Even C2 with jitter (e.g., ±20%) still has lower stddev than legitimate browsing. The KQL approach: bin timestamps, measure stdev per source-destination pair over 24h, filter stdev < threshold AND count > minimum. This catches beacons that evade simple 'periodic query' detection by using jitter. Key tuning parameter: stdev threshold depends on jitter amount — more jitter = higher threshold needed."
+  },
+  {
+    q: "During APT response, a colleague wants to immediately isolate all affected hosts and reset all passwords at hour 2 of the investigation. What is the correct recommendation?",
+    opts: [
+      "Agree — speed is critical, isolate immediately before the attacker causes more damage",
+      "Disagree — premature eviction alerts the attacker. Spend time understanding the full scope (all compromised hosts, all C2 channels, all persistence) before coordinated simultaneous eviction. Partial eviction gives the attacker time to activate backup persistence or destroy evidence",
+      "Disagree — you should notify law enforcement first, then isolate after 5 business days",
+      "Agree, but only reset passwords — don't isolate hosts yet"
+    ],
+    correct: 1,
+    explain: "<strong>Coordinated eviction — not piecemeal.</strong> Premature partial eviction is one of the most common IR mistakes in APT cases. If you isolate 3 hosts at hour 2, the attacker (who may be actively watching C2 dashboards) immediately knows detection has occurred and can: activate backup persistence mechanisms, destroy evidence (logs, artifacts), move laterally to unchecked systems, accelerate their mission (exfil, destroy). The correct approach: scope fully (all compromised hosts, all C2, all persistence, all stolen credentials), then evict everything simultaneously at a planned T=0. For ransomware (already destructive) or active exfil, the calculus changes — earlier containment may be warranted."
+  },
+  {
+    q: "Your Sigma rule targets Sysmon Event ID 8 (CreateRemoteThread). A junior analyst asks: 'Can't attackers just avoid using CreateRemoteThread?'. What is the correct technical response?",
+    opts: [
+      "No — Windows requires CreateRemoteThread for all cross-process code execution",
+      "Yes — attackers can use alternative injection techniques (APC injection, thread hijacking, SetThreadContext, NtCreateThreadEx) that don't generate Event ID 8. This is why you need multiple overlapping rules targeting each injection technique, PLUS memory-scanning rules that catch the result rather than the mechanism",
+      "No — Sysmon captures all injection attempts regardless of API used",
+      "Yes — but only on Windows 7. Modern Windows requires CreateRemoteThread"
+    ],
+    correct: 1,
+    explain: "<strong>Detection in depth — multiple injection rules required.</strong> CreateRemoteThread (Sysmon Ev8) is one injection method, but attackers have many alternatives: APC Injection (NtQueueApcThread — no Ev8), Thread Hijacking (SuspendThread → GetThreadContext → SetThreadContext → ResumeThread — no Ev8), Module Stomping (overwrite DLL in place — no Ev8), Reflective DLL (no Windows API at all — only ETW/memory scanning detects it). Defense-in-depth requires: Ev8 rule + Ev10 (process access) rule + malfind-style memory scanning + behavioral rules (processes making unexpected network connections). No single rule catches all injection. Attackers will always move to the path your rules don't cover — your detection portfolio must be deep."
+  },
+  {
+    q: "During a ransomware incident, you find the malware deleted itself after encryption but a suspicious process is still running. How do you recover the binary?",
+    opts: [
+      "You cannot — once deleted, the file is permanently unrecoverable",
+      "Check /proc/<PID>/fd/ on Linux or use Task Manager's 'Create dump file' — the process still holds a file descriptor to the deleted binary, which remains on disk until all handles are closed",
+      "Run file carving (foremost/photorec) on the entire disk — will take several hours",
+      "Restore from the most recent backup of the malware's directory"
+    ],
+    correct: 1,
+    explain: "<strong>Process file descriptor recovery from /proc.</strong> On Linux, when a process opens a file, the kernel keeps the file's inode alive as long as any process has an open file descriptor to it — even if the filename is deleted from the directory. The file lives at <code>/proc/&lt;PID&gt;/fd/&lt;FD&gt;</code>. Steps: (1) <code>lsof +L1</code> — lists open files with link count 0 (deleted), (2) Find the PID and FD number, (3) <code>cp /proc/1337/fd/5 /evidence/recovered_binary</code>. On Windows, the equivalent is creating a process dump via Task Manager or ProcDump, then analyzing the dump for embedded PE headers. This technique is why malware authors can't rely solely on self-deletion — the running process betrays the binary until it terminates."
+  },
+  {
+    q: "You need to write a detection for ransomware's VSS shadow copy deletion. The attacker uses three different commands: 'vssadmin delete shadows', 'wmic shadowcopy delete', and 'wbadmin delete catalog'. What is the best Sigma condition structure?",
+    opts: [
+      "condition: sel_vssadmin and sel_wmic and sel_wbadmin (all three must match)",
+      "condition: sel_vssadmin or sel_wmic or sel_wbadmin (any one match triggers)",
+      "condition: 2 of (sel_vssadmin, sel_wmic, sel_wbadmin) (at least two must match)",
+      "condition: not (sel_vssadmin or sel_wmic or sel_wbadmin) (fire when none match)"
+    ],
+    correct: 1,
+    explain: "<strong>OR condition for equivalent techniques — any is malicious.</strong> Each of the three commands (vssadmin, wmic shadowcopy, wbadmin) independently performs the same malicious action: deleting backup snapshots. An attacker uses only ONE of them — requiring ALL three (AND) would almost never fire. Requiring exactly 2-of-3 misses cases where the attacker uses only one technique. The correct structure is OR — ANY single occurrence is already critical. This is a pattern for when: multiple techniques achieve the same malicious goal, each technique is independently malicious (not a false positive individually), the attacker chooses one path. Contrast with process injection detection where you might require multiple APIs together (AND) because each API alone has legitimate uses."
+  }
+];
+
+let answered = new Array(questions.length).fill(false);
+let correct_count = 0;
+
+function buildQuiz() {
+  const c = document.getElementById('quiz-container');
+  c.innerHTML = '';
+  questions.forEach((q, qi) => {
+    const div = document.createElement('div');
+    div.className = 'quiz-card';
+    div.innerHTML = `
+      <div class="qnum">Q${String(qi+1).padStart(2,'0')} / ${questions.length} — ${['Detection Methodology','Sigma Tuning','Threat Hunting','Sigma Logic','Forensics','Beaconing','APT Response','EDR Coverage','Recovery','Rule Design'][qi]}</div>
+      <div class="qtext">${q.q}</div>
+      <div class="qopts">${q.opts.map((o,oi) => `<button class="qopt" onclick="answer(${qi},${oi},this)">${String.fromCharCode(65+oi)}. ${o}</button>`).join('')}</div>
+      <div class="qexplain" id="exp-${qi}">${q.explain}</div>
+    `;
+    c.appendChild(div);
+  });
+  updateScore();
+}
+
+function answer(qi, oi, btn) {
+  if (answered[qi]) return;
+  answered[qi] = true;
+  const q = questions[qi];
+  btn.closest('.qopts').querySelectorAll('.qopt').forEach(b => b.classList.add('locked'));
+  if (oi === q.correct) { btn.classList.add('correct'); correct_count++; }
+  else { btn.classList.add('wrong'); btn.closest('.qopts').querySelectorAll('.qopt')[q.correct].classList.add('correct'); }
+  document.getElementById('exp-' + qi).classList.add('show');
+  updateScore();
+}
+
+function updateScore() {
+  const done = answered.filter(Boolean).length;
+  if (done === 0) { document.getElementById('score-text').textContent = 'Answer questions to track your score'; return; }
+  const pct = Math.round(correct_count / done * 100);
+  document.getElementById('score-text').textContent = `${correct_count}/${done} correct — ${pct}% — ${questions.length - done} remaining`;
+  const fill = document.getElementById('score-fill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct >= 80 ? '#7dff4f' : pct >= 60 ? '#ffb700' : '#ff3322';
+}
+
+function resetQuiz() {
+  answered = new Array(questions.length).fill(false);
+  correct_count = 0;
+  buildQuiz();
+}
+
+buildQuiz();
+</script>
+</body>
+</html>

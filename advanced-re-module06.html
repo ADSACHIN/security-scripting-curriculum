@@ -1,0 +1,2513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RE//06 — Advanced Reverse Engineering</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Black+Ops+One&family=Share+Tech+Mono&family=Teko:wght@300;400;600;700&display=swap');
+
+:root {
+  --void:   #02040a;
+  --void2:  #050a12;
+  --void3:  #080f1c;
+  --phos:   #0aff5a;   /* phosphor green — main */
+  --phos2:  #07cc48;
+  --phos3:  #05992e;
+  --phos4:  #033a14;
+  --amber:  #ffb800;   /* amber CRT */
+  --amber2: #cc8800;
+  --red:    #ff1a2e;
+  --cyan:   #00e8ff;
+  --cyan2:  #00aabb;
+  --white:  #d0f0e0;
+  --dim:    #1a4028;
+  --muted:  #0d2418;
+  --rule:   #0a1e10;
+
+  --vt: 'VT323', monospace;
+  --ops: 'Black Ops One', cursive;
+  --mono: 'Share Tech Mono', monospace;
+  --teko: 'Teko', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--void);
+  color: var(--phos);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: crosshair;
+}
+
+/* ── CRT EFFECTS ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(0,0,0,.12) 3px,
+    rgba(0,0,0,.12) 4px
+  );
+  pointer-events: none; z-index: 9000;
+  animation: scanroll 8s linear infinite;
+}
+@keyframes scanroll {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 400px; }
+}
+
+/* Phosphor glow vignette */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(
+    ellipse 85% 85% at 50% 50%,
+    transparent 60%,
+    rgba(2,4,10,.8) 100%
+  );
+  pointer-events: none; z-index: 8999;
+}
+
+/* Phosphor text glow */
+.glow { text-shadow: 0 0 8px var(--phos), 0 0 20px rgba(10,255,90,.3); }
+.glow-a { text-shadow: 0 0 8px var(--amber), 0 0 20px rgba(255,184,0,.3); }
+.glow-r { text-shadow: 0 0 8px var(--red), 0 0 20px rgba(255,26,46,.3); }
+.glow-c { text-shadow: 0 0 8px var(--cyan), 0 0 20px rgba(0,232,255,.3); }
+
+.z1 { position: relative; z-index: 1; }
+
+/* ── OSCILLOSCOPE HEADER / NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 200;
+  background: var(--void);
+  border-bottom: 2px solid var(--phos3);
+  display: flex; align-items: stretch;
+  overflow-x: auto; scrollbar-width: none;
+  box-shadow: 0 0 20px rgba(10,255,90,.1);
+}
+nav::-webkit-scrollbar { display: none; }
+
+.nav-ident {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 20px;
+  border-right: 2px solid var(--phos3);
+  flex-shrink: 0;
+}
+.nav-badge {
+  font-family: var(--ops);
+  font-size: .75rem;
+  letter-spacing: 2px;
+  color: var(--void);
+  background: var(--phos);
+  padding: 3px 10px;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  white-space: nowrap;
+}
+.nav-title {
+  font-family: var(--vt);
+  font-size: 1.1rem;
+  letter-spacing: 3px;
+  color: var(--phos);
+  white-space: nowrap;
+}
+
+.ntabs { display: flex; }
+.ntab {
+  font-family: var(--mono);
+  font-size: .6rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 0 16px;
+  cursor: pointer;
+  color: var(--phos3);
+  background: none; border: none;
+  border-right: 1px solid var(--muted);
+  white-space: nowrap;
+  transition: all .15s;
+  position: relative;
+}
+.ntab:hover { color: var(--phos); background: rgba(10,255,90,.04); }
+.ntab.active {
+  color: var(--void);
+  background: var(--phos3);
+  font-weight: 700;
+}
+.ntab.active::after {
+  content: '▶';
+  position: absolute; right: 4px; top: 50%;
+  transform: translateY(-50%);
+  font-size: .5rem;
+  color: var(--phos);
+}
+
+/* ── HERO / SCOPE DISPLAY ── */
+.hero {
+  padding: 0;
+  border-bottom: 2px solid var(--phos3);
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  position: relative;
+  overflow: hidden;
+}
+@media(max-width:780px) { .hero { grid-template-columns: 1fr; } }
+
+/* Oscilloscope trace in hero background */
+.hero-trace {
+  position: absolute; inset: 0;
+  opacity: .07; pointer-events: none;
+  overflow: hidden;
+}
+
+.hero-main {
+  padding: 48px 48px 40px;
+  border-right: 2px solid var(--phos4);
+  position: relative;
+}
+
+.hero-module-tag {
+  font-family: var(--mono);
+  font-size: .58rem;
+  letter-spacing: 5px;
+  color: var(--phos3);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.hero-module-tag::before {
+  content: '';
+  display: block; width: 3px; height: 3px;
+  background: var(--phos);
+  box-shadow: 0 0 6px var(--phos);
+  border-radius: 50%;
+  animation: blink 1.2s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.hero-h1 {
+  font-family: var(--ops);
+  font-size: clamp(2.8rem, 7vw, 5.5rem);
+  line-height: .92;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+  color: var(--phos);
+  text-shadow: 0 0 30px rgba(10,255,90,.4), 0 0 60px rgba(10,255,90,.1);
+}
+.hero-h1 .hl { color: var(--amber); text-shadow: 0 0 20px rgba(255,184,0,.5); }
+
+.hero-desc {
+  font-family: var(--mono);
+  font-size: .82rem;
+  color: var(--phos3);
+  line-height: 1.8;
+  max-width: 480px;
+  margin-bottom: 24px;
+  letter-spacing: .5px;
+}
+
+.hero-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hchip {
+  font-family: var(--mono);
+  font-size: .56rem;
+  letter-spacing: 2px;
+  padding: 4px 10px;
+  border: 1px solid var(--phos3);
+  color: var(--phos3);
+  text-transform: uppercase;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+
+.hero-panel {
+  padding: 0;
+  background: var(--void2);
+  display: flex; flex-direction: column;
+}
+.hero-panel-row {
+  flex: 1;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--muted);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.hero-panel-row:last-child { border-bottom: none; }
+.hpr-label {
+  font-family: var(--mono);
+  font-size: .5rem;
+  letter-spacing: 3px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.hpr-value {
+  font-family: var(--vt);
+  font-size: 1.3rem;
+  letter-spacing: 2px;
+  color: var(--amber);
+  text-shadow: 0 0 10px rgba(255,184,0,.4);
+}
+.hpr-sub {
+  font-family: var(--mono);
+  font-size: .6rem;
+  color: var(--phos3);
+  margin-top: 2px;
+}
+
+/* ── MODULE / WRAPPER ── */
+.module { display: none; }
+.module.active { display: block; }
+.wrapper { max-width: 1200px; margin: 0 auto; padding: 40px 48px 80px; }
+@media(max-width:640px) { .wrapper { padding: 24px 16px 60px; } }
+
+/* ── SECTION HEADER ── */
+.sh {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--phos4);
+  display: flex; align-items: flex-start; gap: 16px;
+}
+.sh-marker {
+  font-family: var(--vt);
+  font-size: 3.5rem;
+  line-height: 1;
+  color: var(--phos4);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.sh-body {}
+.sh-eyebrow {
+  font-family: var(--mono);
+  font-size: .52rem;
+  letter-spacing: 4px;
+  color: var(--dim);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.sh-title {
+  font-family: var(--ops);
+  font-size: 1.6rem;
+  letter-spacing: 2px;
+  color: var(--phos);
+  margin-bottom: 6px;
+  text-shadow: 0 0 15px rgba(10,255,90,.3);
+}
+.sh-title .hl { color: var(--amber); }
+.sh-desc {
+  font-family: var(--mono);
+  font-size: .78rem;
+  color: var(--phos3);
+  line-height: 1.7;
+  max-width: 680px;
+}
+
+/* ── GRIDS ── */
+.g2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+.g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.gasym { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; }
+@media(max-width:860px) { .g2,.g3,.gasym { grid-template-columns:1fr; } }
+
+/* ── CARDS — panel/instrument look ── */
+.card {
+  background: var(--void2);
+  border: 1px solid var(--phos4);
+  border-radius: 0;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s, box-shadow .2s;
+}
+.card:hover {
+  border-color: var(--phos3);
+  box-shadow: 0 0 16px rgba(10,255,90,.08), inset 0 0 16px rgba(10,255,90,.02);
+}
+
+/* corner bracket decoration */
+.card::before, .card::after {
+  content: '';
+  position: absolute;
+  width: 8px; height: 8px;
+  border-color: var(--phos3);
+  border-style: solid;
+  opacity: .6;
+}
+.card::before { top: 4px; left: 4px; border-width: 1px 0 0 1px; }
+.card::after  { bottom: 4px; right: 4px; border-width: 0 1px 1px 0; }
+
+/* card accent variants */
+.ca { border-top: 2px solid var(--amber3); }
+.ca:hover { border-top-color: var(--amber); box-shadow: 0 0 16px rgba(255,184,0,.08); }
+.cr { border-top: 2px solid rgba(255,26,46,.4); }
+.cr:hover { border-top-color: var(--red); }
+.cc { border-top: 2px solid rgba(0,232,255,.2); }
+.cc:hover { border-top-color: var(--cyan2); }
+
+.clabel {
+  font-family: var(--mono);
+  font-size: .5rem;
+  letter-spacing: 3px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.ctitle {
+  font-family: var(--ops);
+  font-size: 1rem;
+  letter-spacing: 1px;
+  color: var(--phos);
+  margin-bottom: 10px;
+  line-height: 1.1;
+}
+.ctitle.amber { color: var(--amber); }
+.ctitle.red   { color: var(--red); }
+.ctitle.cyan  { color: var(--cyan2); }
+.cbody {
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--phos3);
+  line-height: 1.75;
+}
+.cbody strong { color: var(--phos); }
+.cbody code {
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--amber);
+  background: rgba(255,184,0,.07);
+  padding: 1px 4px;
+  border: 1px solid rgba(255,184,0,.15);
+}
+
+/* ── CODE BLOCKS — terminal/hex dump style ── */
+.cb {
+  background: #010308;
+  border: 1px solid var(--phos4);
+  border-left: 3px solid var(--cb-accent, var(--phos3));
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: .68rem;
+  line-height: 1.95;
+  overflow-x: auto;
+  margin: 10px 0;
+  color: #1a4028;
+  position: relative;
+  box-shadow: inset 0 0 30px rgba(10,255,90,.02);
+}
+.cb .tag {
+  position: absolute; top: 5px; right: 8px;
+  font-size: .48rem; letter-spacing: 2px;
+  color: rgba(10,255,90,.25); text-transform: uppercase;
+}
+.K { color: #0aff5a; font-weight: 700; }
+.F { color: #ffb800; }
+.S { color: #aaddbb; }
+.N { color: #ff8844; }
+.C { color: #0d2818; font-style: italic; }
+.V { color: #66bb88; }
+.H { color: #88ccaa; }
+.R { color: #ff1a2e; }
+.G { color: #0aff5a; }
+.Y { color: #ffb800; }
+.CY { color: #00e8ff; }
+.W { color: #d0f0e0; }
+.P { color: #cc88ff; }
+.DIM { color: #0d2818; }
+
+/* ── HEX DUMP DISPLAY ── */
+.hexdump {
+  background: #010308;
+  border: 1px solid var(--phos4);
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: .67rem;
+  line-height: 1.9;
+  overflow-x: auto;
+  color: #1a4028;
+  margin: 10px 0;
+}
+.hex-addr { color: var(--phos4); }
+.hex-byte { color: var(--phos3); }
+.hex-byte.hl { color: var(--amber); font-weight: 700; }
+.hex-byte.red { color: var(--red); }
+.hex-byte.cyan { color: var(--cyan2); }
+.hex-ascii { color: var(--dim); margin-left: 10px; }
+.hex-ascii .hl { color: var(--phos); }
+
+/* ── ALERT ── */
+.alert {
+  border: 1px solid;
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-family: var(--mono);
+  font-size: .73rem;
+  line-height: 1.65;
+}
+.alert strong { font-weight: 700; }
+.a-warn { border-color: rgba(255,184,0,.4); color: var(--amber2); background: rgba(255,184,0,.04); }
+.a-info { border-color: rgba(0,232,255,.3); color: var(--cyan2); background: rgba(0,232,255,.04); }
+.a-ok   { border-color: rgba(10,255,90,.3); color: var(--phos3); background: rgba(10,255,90,.04); }
+.a-err  { border-color: rgba(255,26,46,.4); color: var(--red); background: rgba(255,26,46,.04); }
+
+/* ── TABLE ── */
+.dtable { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.dtable th {
+  font-family: var(--mono);
+  font-size: .52rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  text-align: left;
+  background: var(--phos4);
+  color: var(--phos);
+  border: 1px solid var(--phos4);
+}
+.dtable td {
+  font-family: var(--mono);
+  font-size: .72rem;
+  padding: 8px 12px;
+  border: 1px solid var(--muted);
+  vertical-align: top;
+  line-height: 1.5;
+  color: var(--phos3);
+}
+.dtable tr:nth-child(even) td { background: rgba(10,255,90,.02); }
+.dtable tr:hover td { background: rgba(10,255,90,.04); color: var(--phos); }
+.dtable td strong { color: var(--phos); }
+.dtable td code { font-family: var(--mono); color: var(--amber); }
+.tc-r { color: var(--red) !important; font-weight: 700; }
+.tc-y { color: var(--amber) !important; font-weight: 700; }
+.tc-g { color: var(--phos2) !important; font-weight: 700; }
+.tc-c { color: var(--cyan2) !important; font-weight: 700; }
+
+/* ── DIVIDER ── */
+.divline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--phos4), transparent);
+  margin: 24px 0;
+}
+
+/* ── BADGES ── */
+.badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.badge {
+  font-family: var(--mono);
+  font-size: .5rem;
+  letter-spacing: 1.5px;
+  padding: 2px 8px;
+  border: 1px solid;
+  text-transform: uppercase;
+  clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+}
+.bg { color: var(--phos3); border-color: var(--phos3); background: rgba(10,255,90,.05); }
+.ba { color: var(--amber2); border-color: var(--amber3); background: rgba(255,184,0,.05); }
+.br { color: var(--red); border-color: rgba(255,26,46,.4); background: rgba(255,26,46,.05); }
+.bc { color: var(--cyan2); border-color: rgba(0,232,255,.3); background: rgba(0,232,255,.05); }
+
+/* ── IN-PAGE TABS ── */
+.itabs {
+  display: flex; border-bottom: 1px solid var(--phos4);
+  margin-bottom: 0; overflow-x: auto; scrollbar-width: none;
+}
+.itabs::-webkit-scrollbar { display: none; }
+.itab {
+  font-family: var(--mono);
+  font-size: .56rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: var(--dim);
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.itab:hover { color: var(--phos3); }
+.itab.active { color: var(--phos); border-bottom-color: var(--phos); }
+.ipanel { display: none; padding-top: 20px; }
+.ipanel.active { display: block; }
+
+/* ── QUIZ ── */
+.qcard {
+  background: var(--void2);
+  border: 1px solid var(--phos4);
+  padding: 20px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.qcard::before, .qcard::after {
+  content: ''; position: absolute;
+  width: 6px; height: 6px;
+  border-color: var(--phos3); border-style: solid; opacity: .5;
+}
+.qcard::before { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
+.qcard::after  { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+
+.qnum { font-family: var(--mono); font-size: .5rem; letter-spacing: 3px; color: var(--dim); margin-bottom: 8px; text-transform: uppercase; }
+.qtext { font-family: var(--vt); font-size: 1.25rem; color: var(--phos); margin-bottom: 14px; line-height: 1.35; letter-spacing: .5px; }
+.qopts { display: flex; flex-direction: column; gap: 5px; }
+.qopt {
+  font-family: var(--mono);
+  font-size: .68rem;
+  padding: 9px 12px;
+  border: 1px solid var(--muted);
+  background: var(--void);
+  color: var(--phos3);
+  text-align: left;
+  cursor: pointer;
+  transition: all .15s;
+  line-height: 1.4;
+}
+.qopt:hover:not(.locked) {
+  border-color: var(--phos3);
+  color: var(--phos);
+  background: rgba(10,255,90,.03);
+  box-shadow: 0 0 8px rgba(10,255,90,.06);
+}
+.qopt.correct { border-color: var(--phos2); background: rgba(10,255,90,.08); color: var(--phos); }
+.qopt.wrong   { border-color: rgba(255,26,46,.5); background: rgba(255,26,46,.05); color: var(--red); }
+.qexplain {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #010308;
+  border-left: 2px solid var(--amber3);
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--phos3);
+  line-height: 1.7;
+  display: none;
+}
+.qexplain.show { display: block; }
+.qexplain strong { color: var(--amber); }
+.qexplain code { color: var(--phos); }
+
+.score-panel {
+  background: var(--void2);
+  border: 1px solid var(--phos3);
+  padding: 24px;
+  margin-top: 16px;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(10,255,90,.1);
+}
+.score-big { font-family: var(--vt); font-size: 4rem; color: var(--phos); line-height: 1; margin-bottom: 6px; text-shadow: 0 0 20px rgba(10,255,90,.5); }
+.score-sub { font-family: var(--mono); font-size: .58rem; letter-spacing: 3px; color: var(--dim); margin-bottom: 14px; }
+.score-bar { height: 3px; background: var(--muted); max-width: 300px; margin: 0 auto 16px; border: none; }
+.score-fill { height: 100%; transition: width .5s; }
+.reset-btn { font-family: var(--mono); font-size: .58rem; letter-spacing: 2px; text-transform: uppercase; padding: 8px 20px; background: none; color: var(--phos3); border: 1px solid var(--phos3); cursor: pointer; transition: all .2s; clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%); }
+.reset-btn:hover { background: rgba(10,255,90,.08); color: var(--phos); }
+
+/* ── OSCILLOSCOPE WAVEFORM SVG ── */
+.scope-svg {
+  width: 100%;
+  height: 64px;
+  overflow: hidden;
+  background: #010308;
+  border: 1px solid var(--phos4);
+  margin: 10px 0;
+}
+
+/* ── ASSEMBLY LINE DISPLAY ── */
+.asm-line {
+  display: flex;
+  gap: 0;
+  font-family: var(--mono);
+  font-size: .7rem;
+  line-height: 1.85;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(10,255,90,.04);
+  transition: background .1s;
+}
+.asm-line:hover { background: rgba(10,255,90,.04); }
+.asm-addr { color: var(--phos4); min-width: 100px; flex-shrink: 0; }
+.asm-bytes { color: var(--dim); min-width: 150px; flex-shrink: 0; }
+.asm-mnem { color: var(--amber); min-width: 80px; flex-shrink: 0; }
+.asm-ops { color: var(--phos3); flex: 1; }
+.asm-cmt { color: var(--phos4); font-style: italic; }
+.asm-line.bp .asm-addr::before { content: '● '; color: var(--red); }
+.asm-line.hi { background: rgba(10,255,90,.06); }
+.asm-line.hi .asm-mnem { color: var(--phos); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="z1">
+  <div class="nav-ident">
+    <div class="nav-badge">RE//06</div>
+    <div class="nav-title">ADVANCED REVERSE ENGINEERING</div>
+  </div>
+  <div class="ntabs">
+    <button class="ntab active" onclick="sw('overview',this)">Overview</button>
+    <button class="ntab" onclick="sw('packing',this)">Packers</button>
+    <button class="ntab" onclick="sw('antianalysis',this)">Anti-Analysis</button>
+    <button class="ntab" onclick="sw('shellcode',this)">Shellcode</button>
+    <button class="ntab" onclick="sw('obfuscation',this)">Obfuscation</button>
+    <button class="ntab" onclick="sw('unpacking',this)">Unpacking Lab</button>
+    <button class="ntab" onclick="sw('advanced',this)">Advanced TTPs</button>
+    <button class="ntab" onclick="sw('quiz',this)">Exam</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero z1">
+  <svg class="hero-trace" viewBox="0 0 1000 200" preserveAspectRatio="none">
+    <polyline points="0,100 50,100 60,20 70,180 80,20 90,180 100,100 200,100 210,60 230,140 250,100 350,100 360,30 380,170 400,100 500,100 510,80 520,120 530,80 540,120 550,100 650,100 660,50 680,150 700,100 800,100 810,40 830,160 850,100 950,100 960,70 980,130 1000,100"
+      fill="none" stroke="#0aff5a" stroke-width="2"/>
+  </svg>
+  <div class="hero-main">
+    <div class="hero-module-tag">// Extension Module 06 // Advanced Reverse Engineering //</div>
+    <h1 class="hero-h1">UNPACK.<br><span class="hl">DEFEAT.</span><br>DISSECT.</h1>
+    <p class="hero-desc">Packers, protectors, and polymorphic engines. Anti-debug, anti-VM, anti-sandbox evasion chains. Shellcode analysis from raw bytes to logic. Obfuscation patterns and how to dismantle them. The deepest layer of the analyst's craft.</p>
+    <div class="hero-chips">
+      <span class="hchip">Packer Analysis</span>
+      <span class="hchip">OEP Recovery</span>
+      <span class="hchip">Anti-Debug Defeat</span>
+      <span class="hchip">Shellcode RE</span>
+      <span class="hchip">Metamorphic Engines</span>
+      <span class="hchip">Obfuscation</span>
+    </div>
+  </div>
+  <div class="hero-panel z1">
+    <div class="hero-panel-row">
+      <div class="hpr-label">Prerequisite</div>
+      <div class="hpr-value">MOD 03</div>
+      <div class="hpr-sub">Basic RE skills required</div>
+    </div>
+    <div class="hero-panel-row">
+      <div class="hpr-label">Primary Tool</div>
+      <div class="hpr-value">x64DBG</div>
+      <div class="hpr-sub">+ Ghidra + ScyllaHide</div>
+    </div>
+    <div class="hero-panel-row">
+      <div class="hpr-label">Difficulty</div>
+      <div class="hpr-value">HARD</div>
+      <div class="hpr-sub">Advanced / Expert</div>
+    </div>
+    <div class="hero-panel-row">
+      <div class="hpr-label">ATT&CK</div>
+      <div class="hpr-value">T1027</div>
+      <div class="hpr-sub">Obfuscation + sub-techniques</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ OVERVIEW ═══════════════ -->
+<div class="module active z1" id="mod-overview">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-marker">06</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Module Map //</div>
+      <div class="sh-title">Why <span class="hl">Advanced</span> RE Matters</div>
+      <div class="sh-desc">Modern malware is never handed to you in plain form. Every sophisticated sample employs multiple layers of protection: packing, encryption, anti-analysis tricks, and obfuscated shellcode. Defeating these layers is prerequisite to any meaningful analysis.</div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:14px">
+    <div class="card ca">
+      <div class="clabel">Layer 1</div>
+      <div class="ctitle amber">PACKERS & PROTECTORS</div>
+      <div class="cbody">Compresses or encrypts the real PE. A small stub decompresses/decrypts at runtime. Entropy >7.0. Disassembly of the stub reveals the unpacking algorithm. <strong>Goal: reach the OEP (Original Entry Point) and dump the clean PE.</strong></div>
+      <div class="badges"><span class="badge ba">UPX</span><span class="badge ba">MPRESS</span><span class="badge ba">Themida</span><span class="badge ba">VMProtect</span></div>
+    </div>
+    <div class="card ca">
+      <div class="clabel">Layer 2</div>
+      <div class="ctitle amber">ANTI-ANALYSIS</div>
+      <div class="cbody">Actively detects debuggers, VMs, and sandboxes. If detected, the malware behaves differently or terminates. <strong>Goal: defeat every check so the real payload executes during analysis.</strong></div>
+      <div class="badges"><span class="badge br">Anti-Debug</span><span class="badge br">Anti-VM</span><span class="badge br">Timing</span></div>
+    </div>
+    <div class="card ca">
+      <div class="clabel">Layer 3</div>
+      <div class="ctitle amber">SHELLCODE & OBFUSCATION</div>
+      <div class="cbody">Position-independent code, API hashing, string encryption, control-flow flattening. <strong>Goal: recover the original logic from what looks like meaningless data or spaghetti code.</strong></div>
+      <div class="badges"><span class="badge bc">PIC</span><span class="badge bc">API Hash</span><span class="badge bc">CFF</span></div>
+    </div>
+  </div>
+
+  <!-- The RE ladder -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="clabel">Skill Progression</div>
+    <div class="ctitle">ADVANCED RE COMPETENCY LADDER</div>
+    <div class="cb">
+<span class="G">Level 1</span>  Basic static: strings, imports, PE structure              ← Module 03
+<span class="G">Level 2</span>  Basic dynamic: Procmon, Wireshark, behavioral capture      ← Module 03
+<span class="G">Level 3</span>  Ghidra disassembly, rename, follow code flow              ← Module 03
+<span class="Y">Level 4</span>  x64dbg debugging, breakpoints, memory inspection         ← Module 03
+<span class="Y">Level 5</span>  <span class="H">Packer recognition and generic OEP unpacking</span>           ← THIS MODULE
+<span class="Y">Level 6</span>  <span class="H">Anti-analysis detection and defeat</span>                      ← THIS MODULE
+<span class="Y">Level 7</span>  <span class="H">Shellcode extraction and analysis from scratch</span>          ← THIS MODULE
+<span class="R">Level 8</span>  <span class="H">Obfuscation reversal: CFF, VM-based, metamorphic</span>        ← THIS MODULE
+<span class="R">Level 9</span>  Custom packer and cryptor reverse engineering              ← Advanced/research
+<span class="R">Level 10</span> Kernel-mode rootkit analysis, hypervisor RE              ← Specialist track</div>
+  </div>
+
+  <div class="g2">
+    <div class="card cc">
+      <div class="clabel">Environment Requirements</div>
+      <div class="ctitle cyan">ADDITIONAL TOOLS FOR THIS MODULE</div>
+      <div class="dtable-wrap">
+        <table class="dtable">
+          <tr><th>TOOL</th><th>PURPOSE</th></tr>
+          <tr><td><strong>ScyllaHide</strong></td><td>x64dbg plugin — defeats most anti-debug</td></tr>
+          <tr><td><strong>x64dbg + DBG</strong></td><td>Primary debugger for all dynamic work</td></tr>
+          <tr><td><strong>UniExtract / unipacker</strong></td><td>Automatic unpacker for common packers</td></tr>
+          <tr><td><strong>Scylla (IAT repair)</strong></td><td>Fix import table post-unpacking</td></tr>
+          <tr><td><strong>CFF Explorer</strong></td><td>PE header surgery and manual fixes</td></tr>
+          <tr><td><strong>hasherezade/pe-sieve</strong></td><td>Scan process memory for hollowing/injection</td></tr>
+          <tr><td><strong>libemu / sctest</strong></td><td>x86 shellcode emulation</td></tr>
+          <tr><td><strong>speakeasy</strong></td><td>Windows API emulation for shellcode</td></tr>
+          <tr><td><strong>de4dot</strong></td><td>.NET deobfuscator</td></tr>
+          <tr><td><strong>ILSpy / dnSpy</strong></td><td>.NET decompiler (better than Ghidra for .NET)</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="clabel">Waveform — Analyst Workflow</div>
+      <div class="ctitle">DETECTION-FIRST APPROACH</div>
+      <div class="cb">
+<span class="C"># Before spending hours in a debugger,</span>
+<span class="C"># always ask: what do I actually need?</span>
+
+<span class="Y">QUESTION 1:</span> Is it known?
+  sha256 → VirusTotal → family identified?
+  → If yes: read existing reports first
+
+<span class="Y">QUESTION 2:</span> What do I need from it?
+  C2 IP/domain → strings/dynamic may suffice
+  Encryption key → need to debug decrypt routine
+  Full logic → full RE required
+
+<span class="Y">QUESTION 3:</span> What layer am I on?
+  Entropy &gt; 7.0? → unpacking needed first
+  Anti-debug? → ScyllaHide first
+  Shellcode? → extract and emulate
+
+<span class="G">Rule:</span> Use the minimum analysis depth needed.
+  Don't reverse-engineer what strings can answer.
+  Don't debug what Ghidra can answer.
+  Don't write custom unpackers when
+  unipacker handles it in 30 seconds.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ PACKERS ═══════════════ -->
+<div class="module z1" id="mod-packing">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-marker">§1</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Packer Analysis //</div>
+      <div class="sh-title">Packers, Cryptors & <span class="hl">Protectors</span></div>
+      <div class="sh-desc">Three categories of PE protection with escalating analysis difficulty. Recognizing which type you're facing determines the unpacking strategy.</div>
+    </div>
+  </div>
+
+  <!-- Packer taxonomy -->
+  <div class="g3" style="margin-bottom:14px">
+    <div class="card ca">
+      <div class="clabel">Type 01</div>
+      <div class="ctitle amber">PACKERS</div>
+      <div class="cbody" style="margin-bottom:10px">Compress the PE payload. Small stub decompresses at runtime. Entropy 6.5–7.5. Usually a single compression algorithm (LZMA, ZLIB, aPLib). OEP method works cleanly.</div>
+      <div class="cb" style="font-size:.66rem">
+<span class="C"># Common packers:</span>
+<span class="Y">UPX</span>    → trivial: <span class="G">upx -d sample.exe</span>
+<span class="Y">MPRESS</span> → signature: PE section ".MPRESS1"
+<span class="Y">aPLib</span>  → aPack packer (aPlib decompression)
+<span class="Y">NSIS</span>   → Nullsoft installer wrapper
+
+<span class="C"># Detection (Detect-It-Easy):</span>
+<span class="G">die</span> sample.exe
+<span class="C"># Shows: "UPX 3.96 [LZMA, NRV2B]"</span>
+<span class="C"># Or: "Packer: MPRESS 2.19"</span></div>
+    </div>
+    <div class="card ca">
+      <div class="clabel">Type 02</div>
+      <div class="ctitle amber">CRYPTORS</div>
+      <div class="cbody" style="margin-bottom:10px">Encrypt the payload (XOR, RC4, AES, custom). Decryption key may be hardcoded, derived from system info, or fetched from C2. Entropy 7.0–8.0. OEP method works but you need the decrypted memory.</div>
+      <div class="cb" style="font-size:.66rem">
+<span class="C"># XOR cryptor (simplest):</span>
+<span class="K">for</span> i <span class="K">in</span> range(len(encrypted)):
+    plain[i] = encrypted[i] ^ key[i % len(key)]
+
+<span class="C"># Finding the key in x64dbg:</span>
+<span class="N">1.</span> BP on decryption loop (high RIP activity)
+<span class="N">2.</span> Inspect ECX/RCX (key byte) at XOR instruction
+<span class="N">3.</span> Run until loop completes
+<span class="N">4.</span> Dump decrypted region</div>
+    </div>
+    <div class="card ca">
+      <div class="clabel">Type 03</div>
+      <div class="ctitle amber">PROTECTORS</div>
+      <div class="cbody" style="margin-bottom:10px">Commercial protection (Themida, VMProtect, Obsidium). Add anti-debug, anti-VM, code virtualization, import obfuscation. OEP method harder — often virtualized. May require specialized tools.</div>
+      <div class="cb" style="font-size:.66nm">
+<span class="C"># VMProtect — converts code to VM bytecode:</span>
+<span class="R">Original x86:</span>
+  PUSH EAX
+  ADD EAX, 4
+  RET
+
+<span class="R">VMProtect equivalent:</span>
+  CALL vm_entry          <span class="C">← enters VM</span>
+  DB 0x3A, 0x1C, 0x08   <span class="C">← custom bytecodes</span>
+  DB 0x07, 0x2F, 0xB4   <span class="C">← VM interpreter</span>
+  <span class="C">                           reads these</span>
+<span class="C"># Must either: emulate the VM, or</span>
+<span class="C"># trace execution and reconstruct logic</span></div>
+    </div>
+  </div>
+
+  <!-- PE structure of packed file -->
+  <div class="card ca" style="margin-bottom:14px">
+    <div class="clabel">Packed PE Anatomy</div>
+    <div class="ctitle amber">READING THE PE HEADER OF A PACKED SAMPLE</div>
+    <div class="g2">
+      <div>
+        <p class="cbody" style="margin-bottom:10px">A packed PE has a characteristic structure that distinguishes it from a clean binary. Learn to read these signals immediately:</p>
+        <div class="cb">
+<span class="C"># pefile analysis of packed sample</span>
+<span class="K">import</span> pefile
+
+pe = pefile.PE(<span class="S">"packed.exe"</span>)
+
+<span class="C"># Signal 1: Few or no imports</span>
+<span class="K">for</span> e <span class="K">in</span> getattr(pe, <span class="S">"DIRECTORY_ENTRY_IMPORT"</span>, []):
+    <span class="F">print</span>(e.dll.decode())
+<span class="C"># Legitimate PE: 10+ DLLs</span>
+<span class="C"># Packed PE: only kernel32.dll + LoadLibraryA</span>
+<span class="C"># (just enough to bootstrap decompression)</span>
+
+<span class="C"># Signal 2: Small .text, large unknown section</span>
+<span class="K">for</span> s <span class="K">in</span> pe.sections:
+    name = s.Name.decode().strip(<span class="S">'\x00'</span>)
+    e = s.get_entropy()
+    <span class="F">print</span>(f<span class="S">"{name}: entropy={e:.2f}"</span>)
+<span class="C"># UPX: .text entropy ~7.8 (compressed code)</span>
+<span class="C"># UPX0/UPX1 sections instead of normal names</span>
+
+<span class="C"># Signal 3: Entry point in unusual section</span>
+ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
+<span class="K">for</span> s <span class="K">in</span> pe.sections:
+    <span class="K">if</span> s.VirtualAddress &lt;= ep &lt; s.VirtualAddress + s.Misc_VirtualSize:
+        <span class="F">print</span>(f<span class="S">"EP in section: {s.Name.decode()}"</span>)
+<span class="C"># Packed: EP in ".packed", ".prot", "UPX1"</span>
+<span class="C"># Clean:  EP in ".text"</span></div>
+      </div>
+      <div>
+        <div class="hexdump">
+<span style="color:var(--phos3)">PACKED PE — HEX VIEW AT EP:</span>
+
+<span class="hex-addr">00413000:</span> <span class="hex-byte hl">60</span> <span class="hex-byte">BE</span> <span class="hex-byte">00</span> <span class="hex-byte">30</span> <span class="hex-byte">41</span> <span class="hex-byte">00</span> <span class="hex-byte">8D</span> <span class="hex-byte">BE</span> <span class="hex-ascii hl">`....</span>
+<span class="hex-addr">00413008:</span> <span class="hex-byte">00</span> <span class="hex-byte">E0</span> <span class="hex-byte">FE</span> <span class="hex-byte">FF</span> <span class="hex-byte">57</span> <span class="hex-byte">89</span> <span class="hex-byte">E5</span> <span class="hex-byte">8D</span> <span class="hex-ascii">....W...</span>
+<span class="hex-addr">00413010:</span> <span class="hex-byte">9C</span> <span class="hex-byte">24</span> <span class="hex-byte">80</span> <span class="hex-byte">C0</span> <span class="hex-byte">FE</span> <span class="hex-byte">FF</span> <span class="hex-byte">57</span> <span class="hex-byte">31</span> <span class="hex-ascii">.$....W1</span>
+
+<span style="color:var(--amber)">↑ 0x60 = PUSHAD (save all registers)</span>
+<span style="color:var(--amber)">← Classic UPX stub signature</span>
+
+<span style="color:var(--phos3)">CLEAN PE — HEX VIEW AT EP:</span>
+
+<span class="hex-addr">00401000:</span> <span class="hex-byte cyan">55</span> <span class="hex-byte">8B</span> <span class="hex-byte">EC</span> <span class="hex-byte">83</span> <span class="hex-byte">E4</span> <span class="hex-byte">F0</span> <span class="hex-byte">83</span> <span class="hex-byte">EC</span> <span class="hex-ascii">U......</span>
+<span class="hex-addr">00401008:</span> <span class="hex-byte">18</span> <span class="hex-byte">A1</span> <span class="hex-byte">00</span> <span class="hex-byte">30</span> <span class="hex-byte">40</span> <span class="hex-byte">00</span> <span class="hex-byte">33</span> <span class="hex-byte">C5</span> <span class="hex-ascii">..0@.3.</span>
+
+<span style="color:var(--cyan2)">↑ 0x55 = PUSH EBP (standard prologue)</span>
+<span style="color:var(--cyan2)">← Standard function entry — no packer</span>
+        </div>
+        <div class="cb" style="margin-top:8px;font-size:.66rem">
+<span class="C"># Detect-It-Easy (die) — fastest packer ID</span>
+<span class="G">die</span> sample.exe
+
+<span class="C"># Output examples:</span>
+<span class="H">PE32: Packer: UPX(3.95)[NRV2B,best]</span>
+<span class="H">PE32: Packer: Themida(3.1.x.x)[-]</span>
+<span class="H">PE32: Compiler: MSVC(19.xx)</span>  <span class="C">← clean</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic unpacking method -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="clabel">Universal Technique</div>
+    <div class="ctitle">GENERIC OEP UNPACKING — WORKS ON 80% OF PACKERS</div>
+    <div class="cb">
+<span class="tag">x64dbg</span>
+<span class="C">################################################################################</span>
+<span class="C"># THE GENERIC OEP METHOD — works when packer writes payload then jumps to it</span>
+<span class="C">################################################################################</span>
+
+<span class="Y">STEP 1: Open packed binary in x64dbg</span>
+  File → Open → packed.exe
+  <span class="C"># Note: entry point is in packer stub, not real code</span>
+
+<span class="Y">STEP 2: Install ScyllaHide plugin</span>
+  Plugins → ScyllaHide → Options → Profile → "Maximum"
+  <span class="C"># Defeats: IsDebuggerPresent, timing checks, exceptions</span>
+
+<span class="Y">STEP 3: Set memory breakpoint on execution</span>
+  Method A: Memory Map (Alt+M)
+    → Find section with EP → right-click → Set hardware BP on execution
+  Method B: VirtualAlloc/VirtualProtect hook
+    → When packer allocates new RWX memory → BP fires when payload executes
+
+<span class="Y">STEP 4: Run (F9)</span>
+  Packer stub executes:
+    Allocates new memory region
+    Decompresses/decrypts original PE into it
+    Fixes up import table
+    Jumps to REAL entry point (OEP)
+  <span class="C"># Your memory BP fires at the OEP</span>
+  <span class="C"># Disassembly now shows normal-looking code (PUSH EBP etc.)</span>
+
+<span class="Y">STEP 5: Verify you're at OEP</span>
+  EIP/RIP = address in new memory region
+  First instruction looks like normal compiler prologue:
+    PUSH EBP / MOV EBP, ESP / SUB ESP, XX  ← you're at OEP
+
+<span class="Y">STEP 6: Dump with Scylla</span>
+  Plugins → Scylla → Dump
+  <span class="C"># Creates unpacked PE on disk (import table still broken)</span>
+
+<span class="Y">STEP 7: Fix imports with Scylla</span>
+  Scylla → IAT Autosearch
+  Scylla → Get Imports
+  Scylla → Fix Dump → select the dumped file
+  <span class="C"># Now you have a fully working, importable PE</span>
+
+<span class="Y">STEP 8: Verify in Ghidra</span>
+  Import fixed dump
+  Entropy should now be ~6.0-6.5 (normal code)
+  Full import table visible
+  Decompiler produces readable pseudoC</div>
+  </div>
+
+  <!-- UPX specific -->
+  <div class="g2">
+    <div class="card ca">
+      <div class="clabel">UPX — Trivial Case</div>
+      <div class="ctitle amber">UPX AUTO-UNPACK</div>
+      <div class="cb">
+<span class="C"># If not modified — just use upx tool</span>
+<span class="G">upx</span> -d packed_sample.exe -o unpacked.exe
+
+<span class="C"># Verify:</span>
+<span class="G">die</span> unpacked.exe
+<span class="C"># Should now show compiler (MSVC, GCC) not packer</span>
+
+<span class="C"># If UPX is modified (header patched to break upx -d):</span>
+<span class="C"># UPX signature bytes overwritten but stub code intact</span>
+<span class="C"># Manual approach:</span>
+<span class="N">1.</span> Open in x64dbg
+<span class="N">2.</span> PUSHAD at start (0x60) → BP on POPAD (0x61)
+<span class="N">3.</span> Run → lands at OEP after POPAD + JMP
+<span class="N">4.</span> Use Scylla to dump + fix imports
+<span class="C"># Or: fix UPX header, then upx -d works again</span>
+<span class="C"># Header fix: write "UPX!" at correct offset</span></div>
+    </div>
+    <div class="card ca">
+      <div class="clabel">Automated — Try First</div>
+      <div class="ctitle amber">UNIPACKER — AUTO UNPACK</div>
+      <div class="cb">
+<span class="C"># unipacker supports: UPX, ASPack, PEtite,</span>
+<span class="C"># FSG, MPRESS, YZPack, and many more</span>
+
+<span class="G">pip3</span> install unipacker
+
+<span class="C"># Unpack automatically:</span>
+<span class="G">unipacker</span> sample.exe
+
+<span class="C"># Specify output:</span>
+<span class="G">unipacker</span> -o unpacked/ sample.exe
+
+<span class="C"># If unipacker fails:</span>
+<span class="C"># → Try manual OEP method in x64dbg</span>
+<span class="C"># → Check if it's a commercial protector</span>
+<span class="C">     (Themida/VMProtect — no auto tool)</span>
+
+<span class="C"># pe-sieve — scan process for unpacked PE:</span>
+<span class="G">pe-sieve</span> /pid &lt;malware_pid&gt; /out dump/
+<span class="C"># Scans and dumps all mapped PEs from process</span>
+<span class="C"># Works while malware is running</span></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ ANTI-ANALYSIS ═══════════════ -->
+<div class="module z1" id="mod-antianalysis">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-marker">§2</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Evasion Chains //</div>
+      <div class="sh-title">Anti-Analysis: <span class="hl">Detection & Defeat</span></div>
+      <div class="sh-desc">Malware authors invest heavily in making analysis painful. This section catalogs every significant anti-analysis technique with its exact implementation signature and the specific bypass for each.</div>
+    </div>
+  </div>
+
+  <div class="itabs">
+    <button class="itab active" onclick="iTab('ad',this)">Anti-Debug</button>
+    <button class="itab" onclick="iTab('avm',this)">Anti-VM</button>
+    <button class="itab" onclick="iTab('asb',this)">Anti-Sandbox</button>
+    <button class="itab" onclick="iTab('timing',this)">Timing Attacks</button>
+  </div>
+
+  <div class="ipanel active" id="ip-ad">
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card cr">
+        <div class="clabel">Anti-Debug 01</div>
+        <div class="ctitle red">IsDebuggerPresent / CheckRemoteDebuggerPresent</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Reads PEB.BeingDebugged flag (offset 0x2)</span>
+<span class="C"># Returns 1 if debugger attached</span>
+
+<span class="C"># Malware code (conceptual):</span>
+<span class="K">if</span> IsDebuggerPresent() != <span class="N">0</span>:
+    <span class="F">ExitProcess</span>(<span class="N">0</span>)  <span class="C"># silently die</span>
+
+<span class="C"># Assembly equivalent:</span>
+<span class="F">CALL</span>  IsDebuggerPresent
+<span class="F">TEST</span>  EAX, EAX
+<span class="F">JNZ</span>   exit_routine    <span class="C">← jump if debugger</span>
+
+<span class="R">BYPASS OPTIONS:</span>
+<span class="G">1.</span> ScyllaHide plugin → hooks return value → always 0
+<span class="G">2.</span> Manual: find the CALL, patch JNZ → JZ (flip branch)
+<span class="G">3.</span> Manual: find PEB.BeingDebugged → write 0 at offset 2
+   x64dbg: Ctrl+G → fs:[30]+2 → write 0x00
+<span class="G">4.</span> Use Scylla anti-debug profile in x64dbg</span></div>
+      </div>
+      <div class="card cr">
+        <div class="clabel">Anti-Debug 02</div>
+        <div class="ctitle red">NtQueryInformationProcess</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Queries debug port — more stealthy than IsDebuggerPresent</span>
+<span class="C"># ProcessInformationClass = 7 (ProcessDebugPort)</span>
+<span class="C"># Returns non-zero if debugger attached</span>
+
+<span class="C"># Often used as secondary check after IsDebuggerPresent</span>
+<span class="C"># because more sophisticated malware assumes analysts</span>
+<span class="C"># patch the first check</span>
+
+<span class="R">BYPASS:</span>
+<span class="G">1.</span> ScyllaHide hooks NtQueryInformationProcess
+   → returns 0 for ProcessDebugPort query
+<span class="G">2.</span> Manual: BP on NtQueryInformationProcess
+   → after call, inspect return buffer
+   → if ProcessInformationClass==7, patch buffer to 0
+<span class="G">3.</span> x64dbg: set conditional BP:
+   COND: [esp+8] == 7  (ProcessDebugPort param)
+   ACTION: EAX = 0 after return</div>
+      </div>
+    </div>
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card cr">
+        <div class="clabel">Anti-Debug 03</div>
+        <div class="ctitle red">OutputDebugString / CloseHandle Tricks</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># OutputDebugString trick:</span>
+<span class="C"># Clears last error before call</span>
+<span class="C"># If debugger attached: GetLastError() returns 0</span>
+<span class="C"># If no debugger: GetLastError() returns non-zero</span>
+
+SetLastError(<span class="N">0xDEAD</span>)
+OutputDebugString(<span class="S">"test"</span>)
+<span class="K">if</span> GetLastError() == <span class="N">0</span>:
+    <span class="C"># Debugger is present</span>
+
+<span class="C"># CloseHandle trick:</span>
+<span class="C"># Pass invalid handle to CloseHandle</span>
+<span class="C"># Without debugger: exception, handled silently</span>
+<span class="C"># With debugger: EXCEPTION_INVALID_HANDLE raised</span>
+<span class="C">  and debugger may intercept it</span>
+
+<span class="R">BYPASS:</span>
+<span class="G">1.</span> ScyllaHide patches OutputDebugString behavior
+<span class="G">2.</span> CloseHandle: set x64dbg to not break on that exception
+   Options → Exceptions → Add 0xC0000008
+   (INVALID_HANDLE exception code)</div>
+      </div>
+      <div class="card cr">
+        <div class="clabel">Anti-Debug 04</div>
+        <div class="ctitle red">INT3 / Software Breakpoint Detection</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Malware reads its own code looking for 0xCC (INT3)</span>
+<span class="C"># Software breakpoints replace bytes with 0xCC</span>
+<span class="C"># If any 0xCC found → debugger present</span>
+
+<span class="C"># Malware implementation:</span>
+crc32_start = &amp;check_function
+crc32_end   = crc32_start + <span class="N">100</span>
+expected_crc = <span class="N">0xDEADBEEF</span>   <span class="C"># precomputed</span>
+actual_crc  = compute_crc32(crc32_start, <span class="N">100</span>)
+<span class="K">if</span> actual_crc != expected_crc:
+    <span class="C"># Breakpoint or patching detected</span>
+
+<span class="R">BYPASS:</span>
+<span class="G">1.</span> Use HARDWARE breakpoints instead of software
+   (hardware BPs don't write 0xCC — use DR0-DR3)
+   x64dbg: right-click → Set Hardware BP → Execute
+<span class="G">2.</span> NOP the CRC check: find the CMP+JNZ → NOP both
+<span class="G">3.</span> Patch expected_crc to match modified code</div>
+      </div>
+    </div>
+    <!-- Assembly view of anti-debug bypass -->
+    <div class="card">
+      <div class="clabel">ScyllaHide — One-Click Defeat</div>
+      <div class="ctitle">SCYLLAHIDE COVERAGE — WHAT IT AUTOMATICALLY PATCHES</div>
+      <div class="cb">
+<span class="C"># ScyllaHide patches ALL of these in x64dbg:</span>
+<span class="G">✓</span> IsDebuggerPresent              → always returns 0
+<span class="G">✓</span> CheckRemoteDebuggerPresent     → always returns FALSE
+<span class="G">✓</span> NtQueryInformationProcess      → patched for debug port queries
+<span class="G">✓</span> NtSetInformationThread         → ThreadHideFromDebugger
+<span class="G">✓</span> NtQuerySystemInformation       → kernel debugger check
+<span class="G">✓</span> GetTickCount / QueryPerf counter→ timing check defeat
+<span class="G">✓</span> OutputDebugString              → patched
+<span class="G">✓</span> FindWindow (OllyDbg detection) → returns NULL
+<span class="G">✓</span> heap flags (PEB NtGlobalFlag)  → cleared
+<span class="G">✓</span> Process heap (ForceFlags)      → cleared
+
+<span class="Y">Install:</span>
+  x64dbg → Plugins → ScyllaHide
+  Available at: github.com/x64dbg/ScyllaHide
+  
+<span class="Y">Usage:</span>
+  Plugins → ScyllaHide → Options
+  Select profile: "Maximum" for most malware
+  Load profile before starting debugger session</div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-avm">
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card cr">
+        <div class="clabel">Anti-VM 01</div>
+        <div class="ctitle red">Registry Artifact Checks</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Malware queries for VM-specific registry keys</span>
+<span class="C"># If found → analysis environment detected</span>
+
+<span class="R">VMware artifacts:</span>
+  HKLM\SOFTWARE\VMware, Inc.\VMware Tools
+  HKLM\SYSTEM\CurrentControlSet\Services\vmhgfs
+  HKLM\SYSTEM\CurrentControlSet\Services\vmci
+
+<span class="R">VirtualBox artifacts:</span>
+  HKLM\SOFTWARE\Oracle\VirtualBox Guest Additions
+  HKLM\SYSTEM\CurrentControlSet\Services\VBoxSF
+  HKLM\SYSTEM\CurrentControlSet\Services\VBoxGuest
+
+<span class="G">BYPASS:</span>
+  Delete these keys from registry (if snapshot ok)
+  Or: use bare-metal analysis machine
+  Or: patch the registry API call to return NOT_FOUND
+  Or: SysInternals Regshot → compare before/after key query</div>
+      </div>
+      <div class="card cr">
+        <div class="clabel">Anti-VM 02</div>
+        <div class="ctitle red">Process & Driver Enumeration</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Malware walks running processes looking for</span>
+<span class="C"># VM tools, analysis tools, or security software</span>
+
+<span class="R">VM tool processes to hide:</span>
+  vmtoolsd.exe    vmwaretray.exe
+  vmwareuser.exe  VBoxService.exe
+  VBoxTray.exe
+
+<span class="R">Analysis tool processes to hide:</span>
+  procmon.exe     procexp.exe     autoruns.exe
+  wireshark.exe   x64dbg.exe      ghidra.exe
+  ida.exe         ollydbg.exe     fiddler.exe
+
+<span class="G">BYPASS:</span>
+  Rename analysis tools:
+    x64dbg.exe → svchost32_dbg.exe
+    wireshark.exe → netmon_capture.exe
+  These names aren't in malware's block list
+  
+  Or: kill all VM tool processes before analysis
+  Or: patch the process enumeration loop → JMP past</div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="card cr">
+        <div class="clabel">Anti-VM 03</div>
+        <div class="ctitle red">CPUID Hypervisor Bit</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># CPUID with EAX=1 returns:</span>
+<span class="C"># ECX bit 31 = hypervisor present flag</span>
+<span class="C"># Set to 1 in VMs (VMware, VBox, Hyper-V)</span>
+
+<span class="C"># Assembly check:</span>
+<span class="F">MOV</span>  EAX, <span class="N">1</span>
+<span class="F">CPUID</span>
+<span class="F">TEST</span> ECX, <span class="N">80000000h</span>  <span class="C">← bit 31</span>
+<span class="F">JNZ</span>  vm_detected
+
+<span class="G">BYPASS:</span>
+  x64dbg: set BP on CPUID instruction
+  After CPUID executes: clear bit 31 in ECX
+  ECX = ECX AND 0x7FFFFFFF  (clear bit 31)
+  
+  Or: VMware setting (some versions):
+  Add to .vmx: cpuid.1.ecx = "default"
+  
+  Or: bare metal analysis</div>
+      </div>
+      <div class="card cr">
+        <div class="clabel">Anti-VM 04</div>
+        <div class="ctitle red">Hardware Artifact Checks</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># MAC address prefix check:</span>
+<span class="C"># VMware: 00:0C:29, 00:50:56, 00:05:69</span>
+<span class="C"># VirtualBox: 08:00:27</span>
+<span class="C"># QEMU: 52:54:00</span>
+
+<span class="C"># Hard disk model string:</span>
+<span class="C"># "VBOX HARDDISK", "VMware Virtual", "QEMU HARDDISK"</span>
+
+<span class="C"># Screen resolution check:</span>
+<span class="C"># VMs often run at 800x600 or 1024x768</span>
+<span class="C"># Humans rarely use 4:3 below 1080p</span>
+
+<span class="C"># Memory size check:</span>
+<span class="C"># VMs often have &lt;4GB RAM</span>
+<span class="C"># Many sandbox VMs: exactly 1024MB or 2048MB</span>
+
+<span class="G">BYPASS:</span>
+  Change VM MAC to vendor-like (random non-VM prefix)
+  Set VM RAM to 8GB+ (looks more real)
+  Set display to 1920x1080
+  Use a VM with custom disk model string</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-asb">
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card cr">
+        <div class="clabel">Anti-Sandbox 01</div>
+        <div class="ctitle red">Sleep & Time Dilation</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Sandboxes typically have a 3-5 minute timeout</span>
+<span class="C"># Malware sleeps 10+ minutes → analysis window expires</span>
+<span class="C"># Sandbox sees: no interesting behavior → clean</span>
+
+<span class="C"># Common implementation:</span>
+Sleep(<span class="N">600000</span>)   <span class="C"># 10 minutes</span>
+<span class="C"># Or repeated short sleeps:</span>
+<span class="K">for</span> i <span class="K">in</span> range(<span class="N">1000</span>):
+    Sleep(<span class="N">1000</span>)   <span class="C"># 1000 × 1s = 16.7 min</span>
+
+<span class="C"># Time dilation detection:</span>
+<span class="C"># Sandboxes compress sleep() calls to avoid timeouts</span>
+<span class="C"># Malware: call Sleep(10000), check elapsed time</span>
+<span class="C"># If elapsed &lt; 5000ms → time compression detected</span>
+
+<span class="G">BYPASS (debugger):</span>
+  x64dbg: BP on Sleep()
+  Modify EAX (argument) → patch to 0 → instant return
+  Or: patch CALL Sleep → NOP NOP NOP NOP NOP
+  
+<span class="G">Bypass (sandbox config):</span>
+  Configure Cuckoo: analysis_call_timeout
+  Use interactive sandbox (Any.run) → can interact manually</div>
+      </div>
+      <div class="card cr">
+        <div class="clabel">Anti-Sandbox 02</div>
+        <div class="ctitle red">User Interaction Checks</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Sandboxes don't move the mouse or type</span>
+<span class="C"># Malware checks for human-like activity</span>
+
+<span class="C"># Mouse movement check:</span>
+pt1 = GetCursorPos()
+Sleep(<span class="N">5000</span>)
+pt2 = GetCursorPos()
+<span class="K">if</span> pt1 == pt2:
+    <span class="C"># No mouse movement → sandbox</span>
+
+<span class="C"># Click count check:</span>
+<span class="C"># Count mouse clicks in last N seconds</span>
+<span class="C"># Humans click frequently; sandboxes don't</span>
+
+<span class="C"># Desktop foreground window:</span>
+<span class="C"># Check if any window has focus recently</span>
+<span class="C"># Sandboxes often have no focused window</span>
+
+<span class="G">BYPASS (interactive sandbox):</span>
+  Use Any.run → move mouse, click around
+  
+<span class="G">BYPASS (automated):</span>
+  Sandbox agent: pyautogui script moves mouse randomly
+  Or: patch GetCursorPos → return random coordinates
+  
+<span class="G">BYPASS (debugger):</span>
+  Find the comparison → patch to always return "human found"
+  Condition: [pt1.x] != [pt2.x] → force non-equal</div>
+      </div>
+    </div>
+    <div class="card cr">
+      <div class="clabel">Anti-Sandbox 03</div>
+      <div class="ctitle red">Environment & Context Checks</div>
+      <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Sandboxes typically have:</span>
+<span class="C"># - Few installed programs</span>
+<span class="C"># - No browser history</span>
+<span class="C"># - No recent documents</span>
+<span class="C"># - Specific usernames (user, sandbox, maltest, cuckoo)</span>
+<span class="C"># - Specific hostnames (SANDBOX, WIN7-ANALYSIS, etc.)</span>
+
+<span class="C"># Real-world environment checks malware performs:</span>
+<span class="K">if</span> GetUserName() <span class="K">in</span> [<span class="S">"user"</span>,<span class="S">"sandbox"</span>,<span class="S">"maltest"</span>,<span class="S">"cuckoo"</span>]:
+    exit()
+
+<span class="K">if</span> len(os.listdir(<span class="S">"C:/Program Files"</span>)) &lt; <span class="N">5</span>:
+    exit()  <span class="C"># few installed programs</span>
+
+<span class="K">if not</span> Path(<span class="S">"C:/Users/*/AppData/Local/Google/Chrome"</span>).exists():
+    exit()  <span class="C"># no browser installed</span>
+
+<span class="G">BYPASS:</span>
+  Configure sandbox/VM with:
+  - Realistic username and hostname
+  - Installed Office, Chrome, Steam, etc.
+  - Populated browser history (FlareVM does this)
+  - Desktop shortcuts and recent documents</div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-timing">
+    <div class="card cr" style="margin-bottom:12px">
+      <div class="clabel">Timing Attacks — The Subtlest Defense</div>
+      <div class="ctitle red">RDTSC / TIMING-BASED ANTI-DEBUG</div>
+      <div class="cbody" style="margin-bottom:12px">RDTSC (Read Time-Stamp Counter) reads the CPU cycle counter. The delta between two RDTSC calls reveals if code ran slowly — as it does under a debugger. This is extremely difficult to defeat without hardware breakpoints.</div>
+      <div class="g2">
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># RDTSC timing check — assembly:</span>
+<span class="F">RDTSC</span>                   <span class="C">; read TSC → EDX:EAX</span>
+<span class="F">MOV</span>  [saved_tsc], EAX   <span class="C">; save low 32 bits</span>
+<span class="F">CPUID</span>                   <span class="C">; serializing fence</span>
+
+<span class="C">; ... code to time ...</span>
+
+<span class="F">RDTSC</span>                   <span class="C">; read again</span>
+<span class="F">SUB</span>  EAX, [saved_tsc]   <span class="C">; delta</span>
+<span class="F">CMP</span>  EAX, <span class="N">0x100000</span>     <span class="C">; threshold (~1M cycles)</span>
+<span class="F">JA</span>   debugger_detected  <span class="C">; too slow = debugger</span>
+
+<span class="C"># With debugger: each breakpoint adds 10M+ cycles</span>
+<span class="C"># Without debugger: 100-1000 cycles for same code</span></div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="G">BYPASS STRATEGIES:</span>
+
+<span class="N">1.</span> ScyllaHide patches RDTSC → returns fake value
+   Small consistent delta regardless of step time
+
+<span class="N">2.</span> x64dbg: set RDTSC hook
+   Options → Engine → Try to fix RDTSC
+
+<span class="N">3.</span> Hardware breakpoints instead of software
+   Hardware BPs don't stall CPU
+   Use x64dbg hardware BP: Ctrl+H
+
+<span class="N">4.</span> NOP the comparison:
+   Find CMP EAX, [threshold]
+   Find subsequent JA/JNE → NOP it
+   Code jumps past the anti-debug exit
+
+<span class="N">5.</span> Patch the threshold:
+   Find the comparison constant (0x100000)
+   Replace with 0xFFFFFFFF
+   Now threshold is impossibly high → never triggered
+
+<span class="Y">NOTE:</span> QueryPerformanceCounter is similar —
+same bypasses apply. ScyllaHide handles both.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ SHELLCODE ═══════════════ -->
+<div class="module z1" id="mod-shellcode">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-marker">§3</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Position-Independent Code //</div>
+      <div class="sh-title">Shellcode <span class="hl">Analysis</span></div>
+      <div class="sh-desc">Shellcode is position-independent code (PIC) with no import table. It must find Windows APIs at runtime by walking the PEB and hashing export names. Once you understand this pattern, all shellcode becomes readable.</div>
+    </div>
+  </div>
+
+  <!-- PEB walking -->
+  <div class="card cc" style="margin-bottom:14px">
+    <div class="clabel">Foundation — How Shellcode Finds APIs</div>
+    <div class="ctitle cyan">THE PEB WALK — EVERY PIECE OF SHELLCODE USES THIS</div>
+    <div class="cbody" style="margin-bottom:12px">Shellcode has no import table. It must find kernel32.dll at runtime by walking the Process Environment Block (PEB) → InMemoryOrderModuleList → iterate DLLs → find kernel32 → walk its export table → find functions by name or hash.</div>
+    <div class="g2">
+      <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C">; x86 PEB walk — the universal shellcode bootstrap</span>
+<span class="C">; FS:[0x30] = PEB on x86 / GS:[0x60] on x64</span>
+
+<span class="F">MOV</span>  EAX, <span class="F">FS</span>:[<span class="N">0x30</span>]          <span class="C">; PEB pointer</span>
+<span class="F">MOV</span>  EAX, [EAX + <span class="N">0x0C</span>]        <span class="C">; PEB.Ldr</span>
+<span class="F">MOV</span>  ESI, [EAX + <span class="N">0x14</span>]        <span class="C">; InMemoryOrderModuleList.Flink</span>
+<span class="F">LODSD</span>                           <span class="C">; next module (ntdll)</span>
+<span class="F">XCHG</span> EAX, ESI
+<span class="F">LODSD</span>                           <span class="C">; next module (kernel32)</span>
+<span class="F">MOV</span>  EBX, [EAX + <span class="N">0x10</span>]        <span class="C">; kernel32 base address</span>
+
+<span class="C">; Now walk kernel32 export table:</span>
+<span class="F">MOV</span>  EDX, [EBX + <span class="N">0x3C</span>]        <span class="C">; PE header offset</span>
+<span class="F">MOV</span>  EDX, [EBX + EDX + <span class="N">0x78</span>]  <span class="C">; export directory RVA</span>
+<span class="F">ADD</span>  EDX, EBX                  <span class="C">; export directory VA</span>
+<span class="F">MOV</span>  ECX, [EDX + <span class="N">0x18</span>]        <span class="C">; number of functions</span>
+<span class="F">MOV</span>  EAX, [EDX + <span class="N">0x20</span>]        <span class="C">; AddressOfNames RVA</span>
+<span class="F">ADD</span>  EAX, EBX                  <span class="C">; AddressOfNames VA</span>
+<span class="C">; Now loop: hash each name → compare to target hash</span></div>
+      <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C"># Python: reproduce PEB walk for analysis</span>
+<span class="K">import</span> pefile
+
+<span class="K">def</span> <span class="F">hash_name</span>(name: bytes) -> int:
+    <span class="S">"""Ror13AddHash — most common shellcode hash"""</span>
+    h = <span class="N">0</span>
+    <span class="K">for</span> b <span class="K">in</span> name:
+        h = ((h >> <span class="N">13</span>) | (h << <span class="N">19</span>)) & <span class="N">0xFFFFFFFF</span>
+        h = (h + b) & <span class="N">0xFFFFFFFF</span>
+    <span class="K">return</span> h
+
+<span class="K">def</span> <span class="F">build_hash_table</span>(dll_path: str):
+    pe = pefile.PE(dll_path)
+    table = {}
+    <span class="K">for</span> exp <span class="K">in</span> pe.DIRECTORY_ENTRY_EXPORT.symbols:
+        <span class="K">if</span> exp.name:
+            h = hash_name(exp.name + b<span class="S">'\x00'</span>)
+            table[h] = exp.name.decode()
+    <span class="K">return</span> table
+
+<span class="C"># Build table for kernel32.dll</span>
+kt = build_hash_table(<span class="S">"kernel32.dll"</span>)
+
+<span class="C"># Now: find mystery hash in shellcode, look up:</span>
+mystery_hash = <span class="N">0xEC0E4E8E</span>   <span class="C"># from shellcode</span>
+<span class="F">print</span>(kt.get(mystery_hash))  <span class="C"># → "LoadLibraryA"</span>
+
+<span class="C"># Run against all common DLLs to resolve all hashes</span>
+<span class="K">for</span> dll <span class="K">in</span> [<span class="S">"kernel32"</span>,<span class="S">"ntdll"</span>,<span class="S">"ws2_32"</span>,<span class="S">"wininet"</span>]:
+    table = build_hash_table(f<span class="S">"C:/Windows/System32/{dll}.dll"</span>)
+    <span class="K">if</span> mystery_hash <span class="K">in</span> table:
+        <span class="F">print</span>(f<span class="S">"{dll}: {table[mystery_hash]}"</span>)</div>
+    </div>
+  </div>
+
+  <!-- Shellcode extraction -->
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card cc">
+      <div class="clabel">Extraction Methods</div>
+      <div class="ctitle cyan">EXTRACTING SHELLCODE FROM VARIOUS SOURCES</div>
+      <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C"># From memory dump (Volatility malfind output):</span>
+<span class="G">vol</span> -f mem.dmp windows.malfind --dump
+<span class="C"># Saves suspected shellcode as .dmp files</span>
+<span class="C"># Check for non-MZ headers → raw shellcode (no PE)</span>
+
+<span class="C"># From network PCAP (encoded payload):</span>
+<span class="G">tshark</span> -r capture.pcap -Y "http.request.method==POST" \
+    -T fields -e http.file_data > b64_payload.txt
+<span class="G">base64</span> -d b64_payload.txt > raw_shellcode.bin
+<span class="G">file</span> raw_shellcode.bin  <span class="C"># PE or raw shellcode?</span>
+
+<span class="C"># From document macro (VBA encoded payload):</span>
+<span class="C"># Find: CreateObject("WScript.Shell")</span>
+<span class="C"># Extract the base64/hex blob after it</span>
+<span class="G">python3</span> -c <span class="S">"
+import base64, re, sys
+data = open(sys.argv[1]).read()
+blobs = re.findall(r'[A-Za-z0-9+/=]{100,}', data)
+for i,b in enumerate(blobs):
+    try:
+        open(f'blob_{i}.bin','wb').write(base64.b64decode(b))
+    except: pass
+"</span> macro.vba
+
+<span class="C"># From PE resource section:</span>
+<span class="G">python3</span> -c <span class="S">"
+import pefile
+pe = pefile.PE('dropper.exe')
+for res in pe.DIRECTORY_ENTRY_RESOURCE.entries:
+    for entry in res.directory.entries:
+        data = pe.get_data(entry.directory.entries[0].data.struct.OffsetToData,
+                           entry.directory.entries[0].data.struct.Size)
+        open(f'resource_{res.name}.bin','wb').write(data)
+"</span></div>
+    </div>
+
+    <div class="card cc">
+      <div class="clabel">Analysis Methods</div>
+      <div class="ctitle cyan">EMULATE & DISASSEMBLE SHELLCODE</div>
+      <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C"># Method 1: libemu / sctest (x86 emulation)</span>
+<span class="G">sctest</span> -Ss 100000 -i shellcode.bin -G shell_trace.dot
+dot -Tpng shell_trace.dot > shellcode_flow.png
+
+<span class="C"># Method 2: speakeasy — Windows API emulation</span>
+<span class="G">speakeasy</span> -t shellcode.bin -r -a x86
+<span class="C"># Shows: Windows API calls without actually running</span>
+<span class="C"># Output: CreateProcess("cmd.exe"), WSAConnect(...)
+
+# Method 3: Disassemble with ndisasm / objdump</span>
+<span class="G">ndisasm</span> -b 32 shellcode.bin | head -100
+<span class="G">objdump</span> -D -b binary -m i386 shellcode.bin | head -50
+
+<span class="C"># Method 4: Load into Ghidra as raw bytes</span>
+<span class="C"># File → Import File → Language: x86:LE:32:default</span>
+<span class="C"># Format: Raw Binary</span>
+<span class="C"># Analyze → disassembly + decompiler works on raw shellcode</span>
+
+<span class="C"># Method 5: Execute safely in harness (x64dbg)</span>
+<span class="C"># Inject shellcode into a dummy process:</span>
+<span class="G">python3</span> -c <span class="S">"
+import ctypes, sys
+sc = open(sys.argv[1],'rb').read()
+buf = ctypes.create_string_buffer(sc)
+ptr = ctypes.cast(buf, ctypes.c_void_p)
+ctypes.windll.kernel32.VirtualProtect(ptr, len(sc), 0x40, ctypes.byref(ctypes.c_ulong(0)))
+func = ctypes.cast(ptr, ctypes.CFUNCTYPE(None))
+# DO NOT call func() without a debugger attached
+print(f'Shellcode at: {ptr.value:#x} — attach debugger now')
+input('Press Enter after attaching...')
+func()
+"</span> shellcode.bin</div>
+    </div>
+  </div>
+
+  <!-- Common shellcode patterns -->
+  <div class="card">
+    <div class="clabel">Pattern Library</div>
+    <div class="ctitle">RECOGNIZING COMMON SHELLCODE PATTERNS AT A GLANCE</div>
+    <div class="cb">
+<span class="C">###############################################################################</span>
+<span class="C"># PATTERN 1: GetPC (Get-Program-Counter) — shellcode finding its own location</span>
+<span class="C">###############################################################################</span>
+<span class="C"># Common x86 pattern:</span>
+<span class="F">CALL</span> next_instruction      <span class="C">; CALL pushes EIP onto stack</span>
+next_instruction:
+<span class="F">POP</span>  EBX                   <span class="C">; EBX = address of this instruction</span>
+<span class="C"># Now shellcode knows its own base address — adds offsets to find strings/code</span>
+
+<span class="C">###############################################################################</span>
+<span class="C"># PATTERN 2: Socket / Reverse Shell setup</span>
+<span class="C">###############################################################################</span>
+<span class="C"># After PEB walk finds ws2_32.dll:</span>
+<span class="F">PUSH</span> <span class="N">0x0100007F</span>            <span class="C">; 127.0.0.1 (reverse — note byte order)</span>
+<span class="F">PUSH</span> <span class="N">0x5C11</span>                <span class="C">; port 4444 (0x115C little-endian)</span>
+<span class="F">PUSH</span> <span class="N">0x0002</span>                <span class="C">; AF_INET</span>
+<span class="F">PUSH</span> ESP                   <span class="C">; sockaddr structure</span>
+<span class="F">PUSH</span> <span class="N">0x10</span>                  <span class="C">; sizeof(sockaddr)</span>
+<span class="F">PUSH</span> EDI                   <span class="C">; socket handle</span>
+<span class="F">CALL</span> [WSAConnect]          <span class="C">; connect to attacker</span>
+<span class="C"># IP 127.0.0.1 in little-endian: 7F 00 00 01 stored as 0x0100007F</span>
+
+<span class="C">###############################################################################</span>
+<span class="C"># PATTERN 3: EXITFUNC — cleanup options at end of shellcode</span>
+<span class="C">###############################################################################</span>
+<span class="C"># Metasploit shellcode EXITFUNC options:</span>
+<span class="K">none</span>:    just jump to next instruction (risky — crashes)
+<span class="K">process</span>: ExitProcess(0)  — clean exit
+<span class="K">thread</span>:  ExitThread(0)   — cleaner, process keeps running
+<span class="K">seh</span>:     structured exception handler — stealthiest
+
+<span class="C">###############################################################################</span>
+<span class="C"># PATTERN 4: Egg hunter — find payload in memory</span>
+<span class="C">###############################################################################</span>
+<span class="C"># Small first-stage shellcode searches memory for an "egg" marker</span>
+<span class="C"># Egg = 4-8 byte unique value prepended to real payload</span>
+<span class="F">MOV</span>  EDX, <span class="N">0xFFFF0000</span>      <span class="C">; start address</span>
+next_page:
+<span class="F">MOV</span>  EDX, EDX + <span class="N">0x1000</span>   <span class="C">; next page</span>
+<span class="C">; check if page readable (NtAccessCheckAndAuditAlarm)</span>
+<span class="F">MOV</span>  EAX, <span class="N">0x50905090</span>     <span class="C">; egg value</span>
+<span class="F">SCASD</span>                      <span class="C">; compare [EDI] to EAX</span>
+<span class="F">JNZ</span>  next_page
+<span class="F">SCASD</span>                      <span class="C">; second egg check (avoid false positives)</span>
+<span class="F">JNZ</span>  next_page
+<span class="F">JMP</span>  EDI                   <span class="C">; found egg → jump to payload</span></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ OBFUSCATION ═══════════════ -->
+<div class="module z1" id="mod-obfuscation">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-marker">§4</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Code Obfuscation //</div>
+      <div class="sh-title">Obfuscation <span class="hl">Patterns & Reversal</span></div>
+      <div class="sh-desc">String encryption, control flow flattening, opaque predicates, metamorphic code — each technique obscures meaning at a different level. This section covers recognition, tooling, and manual reversal strategies.</div>
+    </div>
+  </div>
+
+  <div class="itabs">
+    <button class="itab active" onclick="iTab('str',this)">String Encryption</button>
+    <button class="itab" onclick="iTab('cff',this)">Control Flow Flattening</button>
+    <button class="itab" onclick="iTab('poly',this)">Polymorphic / Metamorphic</button>
+    <button class="itab" onclick="iTab('dotnet',this)">.NET Obfuscation</button>
+  </div>
+
+  <div class="ipanel active" id="ip-str">
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card">
+        <div class="clabel">Most Common Technique</div>
+        <div class="ctitle">XOR STRING ENCRYPTION — RECOGNITION & REVERSAL</div>
+        <div class="cb">
+<span class="C"># Ghidra: recognize XOR string decrypt loop</span>
+<span class="C"># Pattern: loop + XOR instruction + counter + array write</span>
+
+<span class="C"># Decompiler shows something like:</span>
+local_buf[<span class="N">0</span>] = <span class="N">0x48</span> ^ <span class="N">0x25</span>;  <span class="C"># → 0x6D → 'm'</span>
+local_buf[<span class="N">1</span>] = <span class="N">0x71</span> ^ <span class="N">0x25</span>;  <span class="C"># → 0x54 → 'T'</span>
+<span class="C"># Or loop form with key byte at [key_array + i%len]</span>
+
+<span class="C"># REVERSAL METHOD 1: x64dbg breakpoint at end of loop</span>
+<span class="N">1.</span> Find the decrypt function in Ghidra
+<span class="N">2.</span> Note the address of instruction AFTER the XOR loop
+<span class="N">3.</span> In x64dbg: BP at that address
+<span class="N">4.</span> Run → function decrypts → BP fires
+<span class="N">5.</span> Inspect memory at result buffer (register points there)
+<span class="N">6.</span> String is now decrypted — copy it out
+
+<span class="C"># REVERSAL METHOD 2: Ghidra scripting</span>
+<span class="G">python3</span> -c <span class="S">"
+encrypted = bytes.fromhex('486f77617265596f75')
+key = bytes.fromhex('25')  # single byte key
+result = bytes(b ^ key[i % len(key)] for i,b in enumerate(encrypted))
+print(result.decode())
+"</span>
+<span class="C"># → 'mBr|TjZc\\'</span>
+
+<span class="C"># REVERSAL METHOD 3: Ghidra EmulatorHelper script</span>
+<span class="C"># Emulate just the decrypt function in Ghidra</span>
+<span class="C"># Returns decrypted buffer without running malware</span></div>
+      </div>
+      <div class="card">
+        <div class="clabel">More Sophisticated</div>
+        <div class="ctitle">AES / RC4 STRING DECRYPTION</div>
+        <div class="cb">
+<span class="C"># Modern malware uses AES-256 or RC4 for string encryption</span>
+<span class="C"># KEY INSIGHT: key is hardcoded somewhere in binary</span>
+
+<span class="C"># Finding the key:</span>
+<span class="N">1.</span> Find the decryption routine (CryptDecrypt, AES rounds)
+<span class="N">2.</span> Set BP on first call to it
+<span class="N">3.</span> Arguments include: pointer to key, key length, ciphertext
+<span class="N">4.</span> Inspect stack: [ESP+8] or RDX might be the key pointer
+<span class="N">5.</span> Dump 32 bytes at that address = AES-256 key
+
+<span class="C"># RC4 recognition in Ghidra:</span>
+<span class="C"># KSA (Key Scheduling Algorithm):</span>
+<span class="C"># Loop 0-255 initializing array: S[i] = i</span>
+<span class="C"># Then swap loop mixing in key bytes</span>
+<span class="C"># PRGA (Pseudo-Random Generation):</span>
+<span class="C"># Generates XOR keystream</span>
+
+<span class="C"># Extract key and decrypt offline:</span>
+<span class="G">python3</span> -c <span class="S">"
+from Crypto.Cipher import ARC4
+
+key = bytes.fromhex('01234567890abcdef01234567890abcdef01234567890abcdef01234567890')  # from dump
+ciphertext = bytes.fromhex('deadbeef...')  # from binary
+cipher = ARC4.new(key)
+print(cipher.decrypt(ciphertext))
+"</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="clabel">Advanced Tool</div>
+      <div class="ctitle">FLOSS — AUTOMATED STRING EXTRACTION</div>
+      <div class="cb">
+<span class="C"># FLOSS (FLARE Obfuscated String Solver) handles:</span>
+<span class="C"># - Stack strings (built char by char)</span>
+<span class="C"># - Tight loops (XOR/ADD decryption)</span>
+<span class="C"># - Decoded strings (function-based decryption)</span>
+
+<span class="G">floss</span> sample.exe                      <span class="C"># all strings</span>
+<span class="G">floss</span> sample.exe --only decoded        <span class="C"># only decoded strings</span>
+<span class="G">floss</span> sample.exe --no-static-strings   <span class="C"># skip raw strings</span>
+<span class="G">floss</span> sample.exe -o json > strings.json  <span class="C"># machine-readable</span>
+
+<span class="C"># FLOSS limitations:</span>
+<span class="C"># - Cannot handle AES/RC4 (needs key from runtime)</span>
+<span class="C"># - Misses C2-fetched strings (downloaded at runtime)</span>
+<span class="C"># - Sometimes misidentifies constants as stack strings</span>
+<span class="C"># Always review FLOSS output critically</span>
+
+<span class="C"># HashDB plugin for Ghidra — resolve API hashes:</span>
+<span class="C"># Install: github.com/OALabs/hashdb-ghidra</span>
+<span class="C"># Right-click on hash constant → HashDB Lookup</span>
+<span class="C"># Automatically identifies: ror13, djb2, fnv1a, crc32 etc.</span>
+<span class="C"># Renames the constant to the API name in decompiler</span></div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-cff">
+    <div class="card" style="margin-bottom:12px">
+      <div class="clabel">Control Flow Flattening</div>
+      <div class="ctitle">CFF — RECOGNITION & REVERSAL</div>
+      <div class="cbody" style="margin-bottom:12px">Control Flow Flattening (CFF) transforms structured code into a giant switch statement. All basic blocks are dispatched through a central dispatcher based on a state variable. The result looks like spaghetti code with no discernible structure — but it's reversible.</div>
+      <div class="g2">
+        <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C">// ORIGINAL CODE (readable):</span>
+<span class="K">if</span> (condition) {
+    block_A();
+} <span class="K">else</span> {
+    block_B();
+}
+block_C();
+
+<span class="C">// AFTER CFF (obfuscated):</span>
+state = <span class="N">0x1234ABCD</span>;   <span class="C">// initial state</span>
+<span class="K">while</span> (true) {
+    <span class="K">switch</span> (state) {
+        <span class="K">case</span> <span class="N">0x1234ABCD</span>: <span class="C">// dispatcher check</span>
+            <span class="K">if</span> (cond) state = <span class="N">0x5678EF01</span>;
+            <span class="K">else</span>      state = <span class="N">0x9ABCDE23</span>;
+            <span class="K">break</span>;
+        <span class="K">case</span> <span class="N">0x5678EF01</span>: block_A(); state = <span class="N">0x4567AB89</span>; <span class="K">break</span>;
+        <span class="K">case</span> <span class="N">0x9ABCDE23</span>: block_B(); state = <span class="N">0x4567AB89</span>; <span class="K">break</span>;
+        <span class="K">case</span> <span class="N">0x4567AB89</span>: block_C(); state = EXIT; <span class="K">break</span>;
+    }
+}</div>
+        <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="G">CFF Recognition signals in Ghidra:</span>
+  - Massive function with hundreds of basic blocks
+  - Central 'dispatcher' block with many outgoing edges
+  - Most blocks end with: [state_var] = constant; JMP dispatcher
+  - Condition blocks → update state, jump back to dispatcher
+
+<span class="G">Reversal with D-810 (Ghidra plugin):</span>
+  github.com/jpenalbae/d810
+  Plugins → D-810 → Run all rules
+  Reconstructs original control flow automatically
+
+<span class="G">Reversal with miasm (Python):</span>
+<span class="K">from</span> miasm.analysis.machine <span class="K">import</span> Machine
+<span class="K">from</span> miasm.analysis.simplifier <span class="K">import</span> IRCFGSimplifierCommon
+<span class="C"># Symbolic execution follows all paths through dispatcher</span>
+<span class="C"># Reconstructs true successors for each block</span>
+
+<span class="G">Manual approach:</span>
+  1. Identify the state variable (written before every dispatcher call)
+  2. Trace: follow state 0x1234ABCD → find which case handles it
+  3. Build a map: state_value → block_function
+  4. Re-read code following the map, not the dispatcher</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-poly">
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card cr">
+        <div class="clabel">Polymorphic Engines</div>
+        <div class="ctitle red">POLYMORPHIC CODE — SAME LOGIC, DIFFERENT BYTES</div>
+        <div class="cbody" style="margin-bottom:10px">Polymorphic malware mutates its own decryption stub on each infection while keeping the encrypted payload identical. The AV signature of the stub never matches twice.</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Polymorphic engine strategy:</span>
+<span class="C"># 1. Payload is encrypted with a random key each infection</span>
+<span class="C"># 2. Decryption stub is REGENERATED with equivalent but</span>
+<span class="C">#    different-looking code each time</span>
+
+<span class="C"># SAME logic, different bytes (example):</span>
+<span class="C"># Version 1:</span>
+<span class="H">MOV EAX, [key]</span>
+<span class="H">XOR [payload+ECX], AL</span>
+
+<span class="C"># Version 2 (equivalent, different bytes):</span>
+<span class="H">PUSH [key]</span>
+<span class="H">POP EBX</span>
+<span class="H">MOV EAX, EBX</span>
+<span class="H">XOR [payload+ECX], AH</span>   <span class="C">← uses AH instead of AL</span>
+
+<span class="C"># Version 3:</span>
+<span class="H">MOV EDX, [key]</span>
+<span class="H">AND EDX, 0xFF</span>            <span class="C">← equivalent to low byte</span>
+<span class="H">XOR [payload+ECX], DL</span>
+
+<span class="G">Analysis approach:</span>
+  Run through decryption loop in debugger
+  Dump decrypted payload after loop completes
+  Payload = same every time → analyze payload, not stub
+  YARA: target payload bytes, not stub bytes</div>
+      </div>
+      <div class="card cr">
+        <div class="clabel">Metamorphic Engines</div>
+        <div class="ctitle red">METAMORPHIC CODE — LOGIC REWRITES ITSELF</div>
+        <div class="cbody" style="margin-bottom:10px">True metamorphism rewrites the ENTIRE binary — including the engine itself — using code transformations. This is the hardest class to detect with signatures.</div>
+        <div class="cb" style="--cb-accent:var(--red)">
+<span class="C"># Metamorphic transformations used:</span>
+<span class="N">1.</span> Instruction substitution (equivalent instructions):
+   ADD EAX, 1  ←→  INC EAX
+   MOV EBX, 0  ←→  XOR EBX, EBX  ←→  SUB EBX, EBX
+
+<span class="N">2.</span> Junk code insertion (never executes or affects state):
+   PUSH EAX / POP EAX  (save/restore same register)
+   MOV ECX, ECX        (no-op move)
+   XOR EAX, 0x00000000 (XOR with zero = no-op)
+
+<span class="N">3.</span> Register reassignment:
+   Use EDI instead of ESI throughout
+   All references consistently renamed
+
+<span class="N">4.</span> Code transposition (reorder independent blocks)
+<span class="N">5.</span> Subroutine reordering (change function order in binary)
+
+<span class="G">Analysis implications:</span>
+  Cannot rely on ANY byte-level signature
+  Must use: behavioral detection (what it DOES)
+  YARA: very hard — small invariant byte patterns only
+  ML: statistical features (entropy per section, etc.)
+  Best approach: sandbox execution → behavioral IOCs</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ipanel" id="ip-dotnet">
+    <div class="g2" style="margin-bottom:12px">
+      <div class="card cc">
+        <div class="clabel">.NET Malware</div>
+        <div class="ctitle cyan">.NET OBFUSCATION & DEOBFUSCATION</div>
+        <div class="cbody" style="margin-bottom:10px">.NET malware (AgentTesla, Formbook, AsyncRAT) ships in IL (Intermediate Language) bytecode — much easier to decompile than native code. But .NET obfuscators fight back.</div>
+        <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C"># Identify .NET binaries:</span>
+<span class="G">file</span> sample.exe          <span class="C"># "PE32 executable (.NET)"</span>
+<span class="G">die</span> sample.exe           <span class="C"># "Linker: Microsoft Linker(48.0)[.NET]"</span>
+
+<span class="C"># Step 1: Try de4dot (automated deobfuscator)</span>
+<span class="G">de4dot</span> sample.exe -o deobfuscated.exe
+<span class="C"># Handles: ConfuserEx, Eazfuscator, SmartAssembly,</span>
+<span class="C">#          .NET Reactor, Dotfuscator, Agile.NET</span>
+
+<span class="C"># Step 2: Decompile with ILSpy / dnSpy</span>
+<span class="G">ilspy</span> deobfuscated.exe
+<span class="C"># Shows: full C# source code (clean methods, class names)</span>
+
+<span class="C"># Step 3: If de4dot fails (custom obfuscation):</span>
+<span class="C"># Use dnSpy to debug the .NET binary directly</span>
+<span class="C"># Set breakpoints on suspicious methods</span>
+<span class="C"># Much easier than native code debugging</span>
+
+<span class="C"># Step 4: Resource/embedded payload extraction:</span>
+<span class="G">python3</span> -c <span class="S">"
+import dnfile  # pip install dnfile
+dn = dnfile.dnPE('sample.exe')
+for r in dn.net.resources.rowlist:
+    name = r.Name
+    data = dn.net.resources.get_bytes(r)
+    open(f'resource_{name}.bin','wb').write(data)
+"</span></div>
+      </div>
+      <div class="card cc">
+        <div class="clabel">Common .NET Obfuscation</div>
+        <div class="ctitle cyan">ConfuserEx & Custom PATTERNS</div>
+        <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C"># ConfuserEx obfuscation techniques:</span>
+<span class="N">1.</span> Symbol renaming: all methods/classes → AABBBCC type names
+<span class="N">2.</span> Control flow obfuscation: similar to CFF
+<span class="N">3.</span> Anti-tamper: CRC check on assembly at startup
+<span class="N">4.</span> Anti-dump: patches memory to break dumping
+<span class="N">5.</span> Constant encryption: string literals encrypted
+
+<span class="C"># ConfuserEx custom obfuscated string decryption:</span>
+<span class="C"># Strings stored as encrypted byte arrays in resource</span>
+<span class="C"># Decryption happens in static constructor (.cctor)</span>
+
+<span class="C"># Strategy: break on string decrypt method in dnSpy</span>
+<span class="C"># Let strings decrypt themselves → inspect locals</span>
+
+<span class="C"># AgentTesla specific (common RAT):</span>
+<span class="C"># All strings are AES-256 encrypted</span>
+<span class="C"># Key and IV are base64-encoded constants in .ctor</span>
+<span class="G">python3</span> -c <span class="S">"
+from Crypto.Cipher import AES
+import base64
+key = base64.b64decode('FOUND_KEY_FROM_DNSPY')
+iv  = base64.b64decode('FOUND_IV_FROM_DNSPY')
+ct  = base64.b64decode('ENCRYPTED_STRING')
+cipher = AES.new(key, AES.MODE_CBC, iv)
+print(cipher.decrypt(ct))
+"</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ UNPACKING LAB ═══════════════ -->
+<div class="module z1" id="mod-unpacking">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-marker">§5</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Hands-On // </div>
+      <div class="sh-title">Unpacking <span class="hl">Lab Exercises</span></div>
+      <div class="sh-desc">Three progressive unpacking exercises building from trivial (UPX) to intermediate (custom XOR cryptor) to challenging (multi-stage dropper with anti-debug). All require FlareVM + x64dbg + ScyllaHide.</div>
+    </div>
+  </div>
+
+  <div class="alert a-err" style="margin-bottom:16px"><strong>PREREQUISITES:</strong> FlareVM with x64dbg installed. ScyllaHide plugin installed. Snapshot taken (CLEAN_BASELINE). FakeNet-NG running. All samples from MalwareBazaar or CyberDefenders in isolated VM.</div>
+
+  <!-- Lab 1: UPX -->
+  <div class="card ca" style="margin-bottom:12px">
+    <div class="clabel">Unpacking Lab 01 — Trivial</div>
+    <div class="ctitle amber">MODIFIED UPX — THE CLASSIC STARTING POINT</div>
+    <div class="cbody" style="margin-bottom:10px"><strong>Scenario:</strong> Sample shows UPX sections (UPX0, UPX1) but <code>upx -d</code> fails because the UPX magic bytes were overwritten. You must manually unpack it in x64dbg.</div>
+    <div class="cb">
+<span class="tag">x64dbg — FlareVM</span>
+<span class="C">## Step 1: Confirm it's modified UPX</span>
+<span class="G">die</span> sample.exe
+<span class="C"># Output: PE32 [UPX(modified)] — die identifies it but upx -d fails</span>
+<span class="G">upx</span> -d sample.exe
+<span class="C"># Error: "NotPackedException: not packed by UPX"</span>
+<span class="C"># → Header bytes at offset 0x1E8 were overwritten</span>
+
+<span class="C">## Step 2: Open in x64dbg, enable ScyllaHide</span>
+File → Open → sample.exe
+Plugins → ScyllaHide → Maximum Profile
+
+<span class="C">## Step 3: Find the PUSHAD/POPAD pattern</span>
+<span class="C"># x64dbg lands at entry point — first instruction:</span>
+<span class="Y">PUSHAD</span>    <span class="C">← 0x60 — saves all registers (UPX signature)</span>
+<span class="C"># This CONFIRMS UPX stub even with modified header</span>
+
+<span class="C">## Step 4: Set hardware BP at ESP-4 (classic POPAD trick)</span>
+<span class="C"># UPX ends with POPAD then JMP to OEP</span>
+<span class="C"># After PUSHAD: ESP points to stack top</span>
+<span class="C"># Set Hardware BP on ACCESS (read) at [ESP-4]</span>
+<span class="C"># When POPAD executes, it reads from stack → BP fires</span>
+<span class="C"># Then a JMP follows → that JMP's target = OEP</span>
+Right-click memory → Hardware BP → Read [esp-4]
+
+<span class="C">## Step 5: Run → BP fires at POPAD → next is JMP to OEP</span>
+F9 → stops at POPAD
+F8 → step over POPAD  
+<span class="C"># Now at JMP EAX (or JMP [address]) — this is the TAIL JUMP to OEP</span>
+F8 → step → YOU ARE AT OEP
+<span class="C"># Verify: EIP should be in a different section</span>
+<span class="C"># Disassembly should look like normal compiler code</span>
+<span class="C"># First instruction: PUSH EBP / MOV EBP, ESP</span>
+
+<span class="C">## Step 6: Dump + fix imports with Scylla</span>
+Plugins → Scylla → IAT Autosearch
+Plugins → Scylla → Get Imports
+<span class="C"># All imports should resolve (green checkmarks)</span>
+Plugins → Scylla → Dump → save as "unpacked.exe"
+Plugins → Scylla → Fix Dump → select unpacked.exe
+<span class="C"># → unpacked_SCY.exe = final result</span>
+
+<span class="C">## Step 7: Verify in Ghidra</span>
+<span class="C"># Import unpacked_SCY.exe</span>
+<span class="C"># Entropy should be ~6.0 (normal)</span>
+<span class="C"># Import table should be fully populated</span></div>
+  </div>
+
+  <!-- Lab 2: Custom XOR cryptor -->
+  <div class="card ca" style="margin-bottom:12px">
+    <div class="clabel">Unpacking Lab 02 — Intermediate</div>
+    <div class="ctitle amber">CUSTOM XOR CRYPTOR — EXTRACT THE KEY</div>
+    <div class="cbody" style="margin-bottom:10px"><strong>Scenario:</strong> Sample shows high entropy (7.8) across all sections, minimal imports. No known packer signature. You must locate the decryption loop, identify the key, and dump the decrypted payload.</div>
+    <div class="cb">
+<span class="tag">x64dbg — FlareVM</span>
+<span class="C">## Step 1: Reconnaissance</span>
+<span class="G">die</span> sample.exe           <span class="C"># "Unknown packer"</span>
+<span class="C"># Entropy > 7.8 across entire .text section</span>
+<span class="C"># Imports: only LoadLibraryA, GetProcAddress (minimal)</span>
+
+<span class="C">## Step 2: Open in Ghidra — find the decrypt loop</span>
+<span class="C"># Look for: loop with XOR instruction</span>
+<span class="C"># Pattern in decompiler:</span>
+<span class="C">#   while (counter < size) {</span>
+<span class="C">#     buffer[counter] ^= key[counter % key_len];</span>
+<span class="C">#     counter++;</span>
+<span class="C">#   }</span>
+
+<span class="C">## Step 3: Note the address after decrypt loop</span>
+<span class="C"># After loop completes, code jumps to decrypted payload</span>
+<span class="C"># Or calls: CreateThread / VirtualAlloc + execute</span>
+
+<span class="C">## Step 4: In x64dbg — BP on CALL (decrypt function)</span>
+<span class="C"># Right-click the CALL → Set breakpoint</span>
+F9 → execution stops at decrypt function entry
+
+<span class="C">## Step 5: Inspect arguments (key + ciphertext + size)</span>
+<span class="C"># x86: stack at ESP+4, ESP+8, ESP+0xC</span>
+<span class="C"># x64: RCX, RDX, R8 (first three args)</span>
+<span class="C"># Dump the key buffer: right-click → Follow in Dump</span>
+
+<span class="C">## Step 6: Run through decrypt loop</span>
+<span class="C"># Option A: Step through (slow but educational)</span>
+<span class="C"># Option B: BP at end of loop (fast)</span>
+<span class="C">#   Find the instruction AFTER the loop body</span>
+<span class="C">#   BP there → F9 → let loop complete</span>
+
+<span class="C">## Step 7: Dump decrypted memory</span>
+<span class="C"># Memory map shows new RWX region allocated</span>
+<span class="C"># Right-click region → Dump Memory to File</span>
+<span class="C"># The dump should start with 4D 5A (MZ) → it's a PE</span>
+<span class="C"># → Run through Ghidra for full analysis</span>
+
+<span class="C">## Optional: Reproduce decrypt offline</span>
+<span class="G">python3</span> -c <span class="S">"
+key = bytes.fromhex('deadbeef')  # from dump at key arg
+ct  = open('encrypted_section.bin','rb').read()
+plain = bytes(b ^ key[i % len(key)] for i,b in enumerate(ct))
+open('decrypted.bin','wb').write(plain)
+"</span></div>
+  </div>
+
+  <!-- Lab 3: Anti-debug + multi-stage -->
+  <div class="card ca">
+    <div class="clabel">Unpacking Lab 03 — Advanced</div>
+    <div class="ctitle amber">MULTI-STAGE DROPPER WITH ANTI-DEBUG CHAIN</div>
+    <div class="cbody" style="margin-bottom:10px"><strong>Scenario:</strong> Sample terminates immediately when run in a VM. Must defeat anti-debug + anti-VM chain, then unpack a two-stage dropper (stage 1 → decrypts stage 2 → injects into legitimate process).</div>
+    <div class="cb">
+<span class="tag">x64dbg — FlareVM — ADVANCED</span>
+<span class="C">## Step 1: Aggressive ScyllaHide profile</span>
+Plugins → ScyllaHide → Options → Maximum
+Enable: RDTSC patch, heap flag clearing, TLS callback hiding
+
+<span class="C">## Step 2: Handle TLS callbacks (run BEFORE WinMain)</span>
+<span class="C"># TLS callbacks execute before EP — often contain anti-debug</span>
+<span class="C"># x64dbg Options → Events → TLS Callbacks: checked</span>
+<span class="C"># x64dbg now breaks on each TLS callback → inspect each one</span>
+
+<span class="C">## Step 3: Trace through anti-analysis checks</span>
+<span class="C"># Each check: IsDebuggerPresent → patch JNZ → JZ</span>
+<span class="C"># CPUID → clear ECX bit 31 manually after each CPUID</span>
+<span class="C"># Timing: ignore → ScyllaHide handles it</span>
+<span class="C"># Registry check → already deleted VM keys from Step 1 of setup</span>
+
+<span class="C">## Step 4: Find stage 1 → stage 2 handoff</span>
+<span class="C"># BP on: VirtualAlloc, VirtualAllocEx (new memory)</span>
+<span class="C"># First allocation = stage 2 landing zone</span>
+<span class="C"># Watch for: WriteProcessMemory (injection into another process)</span>
+
+<span class="C">## Step 5: Capture stage 2 before injection</span>
+<span class="C"># At WriteProcessMemory BP:</span>
+<span class="C"># Stack/args show: source buffer, dest process, size</span>
+<span class="C"># Dump source buffer = stage 2 payload (decrypted)</span>
+Right-click buffer address → Dump Region → stage2.bin
+<span class="G">file</span> stage2.bin    <span class="C"># PE32? → analyze in Ghidra</span>
+
+<span class="C">## Step 6: Analyze stage 2 in Ghidra</span>
+<span class="C"># This is the real malware — C2 config, capability set</span>
+<span class="C"># Extract: C2 IP/domain, encryption keys, command set</span>
+
+<span class="C">## Step 7: pe-sieve post-execution</span>
+<span class="G">pe-sieve.exe</span> /pid &lt;injected_pid&gt; /out dump/
+<span class="C"># Dumps all PE artifacts from the injected process</span>
+<span class="C"># Produces: process.dmp, module_XX.dll etc.</span></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ ADVANCED TTPs ═══════════════ -->
+<div class="module z1" id="mod-advanced">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-marker">§6</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Cutting Edge //</div>
+      <div class="sh-title">Advanced <span class="hl">RE Techniques</span></div>
+      <div class="sh-desc">Kernel-mode analysis, heap spray recognition, BYOVD driver analysis, and firmware-level reverse engineering concepts. The frontier of malware sophistication.</div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:14px">
+
+    <div class="card cc">
+      <div class="clabel">Kernel Mode Analysis</div>
+      <div class="ctitle cyan">KERNEL DRIVER REVERSE ENGINEERING</div>
+      <div class="cbody" style="margin-bottom:10px">BYOVD (Bring Your Own Vulnerable Driver) attacks use signed kernel drivers with exploitable vulnerabilities to gain ring-0 execution. Analyzing these requires understanding Windows kernel internals.</div>
+      <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C"># Identify kernel driver (PE with subsystem = Native)</span>
+<span class="G">python3</span> -c <span class="S">"
+import pefile
+pe = pefile.PE('driver.sys')
+print(pe.OPTIONAL_HEADER.Subsystem)  # 1 = Native
+print(pe.FILE_HEADER.Machine)        # 0x8664 = x64
+"</span>
+
+<span class="C"># Key kernel exports to look for:</span>
+<span class="V">DriverEntry</span>       <span class="C">← entry point for kernel drivers</span>
+<span class="V">DriverUnload</span>      <span class="C">← cleanup</span>
+<span class="V">IoCreateDevice</span>    <span class="C">← creates device object</span>
+<span class="V">MmMapIoSpace</span>      <span class="C">← maps physical memory (privilege)</span>
+<span class="V">MmGetPhysicalAddress</span> <span class="C">← kernel memory ops</span>
+
+<span class="C"># Ghidra analysis of .sys file:</span>
+<span class="C"># Import file as PE format</span>
+<span class="C"># Add Windows kernel type definitions</span>
+<span class="C"># Scripts → ImportSymbolsScript → ntoskrnl.pdb</span>
+
+<span class="C"># WinDbg kernel debugging (requires two machines):</span>
+<span class="C"># Target machine: bcdedit /debug on</span>
+<span class="C"># Host machine: windbg -k com:port=COM1,baud=115200</span>
+<span class="C"># Load driver: .reload /f driver.sys</span>
+<span class="C"># List modules: lm</span>
+<span class="C"># Set BP: bp driver!DriverEntry</span></div>
+    </div>
+
+    <div class="card cc">
+      <div class="clabel">Heap Spray Recognition</div>
+      <div class="ctitle cyan">HEAP SPRAY & EXPLOIT ANALYSIS</div>
+      <div class="cbody" style="margin-bottom:10px">Browser exploits and document exploits often use heap spraying to reliably place shellcode at predictable addresses before the vulnerability is triggered.</div>
+      <div class="cb" style="--cb-accent:var(--cyan2)">
+<span class="C"># Heap spray recognition in JavaScript (browser exploit):</span>
+<span class="C"># Allocate many large strings/ArrayBuffers</span>
+<span class="C"># Fill heap with shellcode sleds</span>
+
+<span class="C"># Typical JS heap spray pattern:</span>
+var sled = <span class="S">"\x90\x90"</span>.repeat(<span class="N">0x1000</span>)  <span class="C">// NOP sled</span>
+var sc = <span class="S">"\xfc\xe8..."</span>  <span class="C">// shellcode</span>
+var chunk = sled + sc
+var spray = []
+<span class="K">for</span> (var i = <span class="N">0</span>; i &lt; <span class="N">0x200</span>; i++) {
+    spray.push(chunk.repeat(<span class="N">0x40</span>))
+}
+<span class="C">// Heap now saturated with shellcode at predictable addresses</span>
+<span class="C">// Exploit jumps to 0x0c0c0c0c (common spray target)</span>
+
+<span class="C"># Analysis: capture exploit in Wireshark/Fiddler</span>
+<span class="C"># Extract JavaScript → beautify with js-beautify</span>
+<span class="C"># Decode base64/hex payload embedded in JS</span>
+<span class="G">npm</span> install -g js-beautify
+<span class="G">js-beautify</span> exploit.js > readable.js
+
+<span class="C"># Dynamic: Firefox/Chrome devtools</span>
+<span class="C"># Debugger → Breakpoints → XHR/fetch breaks</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="clabel">Analysis Reference</div>
+    <div class="ctitle">ADVANCED RE TOOL CHEATSHEET</div>
+    <table class="dtable">
+      <tr><th>TOOL</th><th>USE CASE</th><th>COMMAND / NOTES</th></tr>
+      <tr>
+        <td><strong>unipacker</strong></td>
+        <td>Auto-unpack UPX, ASPack, PEtite, FSG, MPRESS</td>
+        <td><code>unipacker sample.exe -o out/</code></td>
+      </tr>
+      <tr>
+        <td><strong>pe-sieve</strong></td>
+        <td>Scan live process for hollowing/injection</td>
+        <td><code>pe-sieve /pid 1234 /out dump/</code></td>
+      </tr>
+      <tr>
+        <td><strong>speakeasy</strong></td>
+        <td>Emulate shellcode without execution</td>
+        <td><code>speakeasy -t sc.bin -r -a x86</code></td>
+      </tr>
+      <tr>
+        <td><strong>ScyllaHide</strong></td>
+        <td>Defeat all common anti-debug in x64dbg</td>
+        <td>x64dbg plugin, Maximum profile</td>
+      </tr>
+      <tr>
+        <td><strong>de4dot</strong></td>
+        <td>Deobfuscate .NET malware</td>
+        <td><code>de4dot sample.exe -o clean.exe</code></td>
+      </tr>
+      <tr>
+        <td><strong>dnSpy</strong></td>
+        <td>Debug .NET malware at IL level</td>
+        <td>Full debugger for .NET, better than x64dbg for managed code</td>
+      </tr>
+      <tr>
+        <td><strong>D-810 (Ghidra)</strong></td>
+        <td>Deobfuscate control flow flattening in Ghidra</td>
+        <td>Plugin: github.com/jpenalbae/d810</td>
+      </tr>
+      <tr>
+        <td><strong>HashDB (Ghidra)</strong></td>
+        <td>Resolve API hash constants automatically</td>
+        <td>Right-click hash → HashDB Lookup</td>
+      </tr>
+      <tr>
+        <td><strong>Detect-It-Easy</strong></td>
+        <td>Identify packer, compiler, protector</td>
+        <td><code>die sample.exe</code> — extremely fast</td>
+      </tr>
+      <tr>
+        <td><strong>FLOSS v3</strong></td>
+        <td>Extract obfuscated strings (stack, decoded, tight loop)</td>
+        <td><code>floss sample.exe --only decoded</code></td>
+      </tr>
+      <tr>
+        <td><strong>CFF Explorer</strong></td>
+        <td>Manual PE header surgery</td>
+        <td>Fix sections, headers, timestamps after unpacking</td>
+      </tr>
+      <tr>
+        <td><strong>WinDbg</strong></td>
+        <td>Kernel debugging (.sys drivers, BYOVD)</td>
+        <td>Requires two-machine setup or VM serial debug</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="clabel">Sample Acquisition for Advanced RE Labs</div>
+    <div class="ctitle">FINDING SAMPLES TO PRACTICE ON</div>
+    <div class="cb">
+<span class="C"># MalwareBazaar — search by packer/tag</span>
+<span class="C"># Browser: bazaar.abuse.ch/browse/?tag=upx</span>
+<span class="G">curl</span> -X POST https://mb-api.abuse.ch/api/v1/ \
+    -d <span class="S">'query=get_taginfo&tag=upx&limit=20'</span>
+
+<span class="C"># For .NET samples (great for deobfuscation practice):</span>
+<span class="C"># Tag: AgentTesla, AsyncRAT, Formbook — all .NET</span>
+<span class="G">curl</span> -X POST https://mb-api.abuse.ch/api/v1/ \
+    -d <span class="S">'query=get_taginfo&tag=agenttesla&limit=10'</span>
+
+<span class="C"># Malware-Traffic-Analysis.net — PCAPs with malware</span>
+<span class="C"># Download exercise ZIP → analyze PCAP + binary</span>
+<span class="C"># Password always: infected</span>
+
+<span class="C"># PolySwarm (threat intel + sample download)</span>
+<span class="C"># Lookup hash → download sample → analyze</span>
+
+<span class="C"># IMPORTANT: hash before analyzing, store in password zip</span>
+<span class="G">sha256sum</span> sample.exe
+<span class="G">zip</span> -P infected sample_$(sha256sum sample.exe | cut -c1-8).zip sample.exe</div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ QUIZ ═══════════════ -->
+<div class="module z1" id="mod-quiz">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-marker">§∞</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Competency Check //</div>
+      <div class="sh-title">Module 06 <span class="hl">Exam</span></div>
+      <div class="sh-desc">Ten questions. Scenario-based. Covers packers, anti-analysis, shellcode internals, obfuscation, and advanced RE technique selection.</div>
+    </div>
+  </div>
+
+  <div id="quiz-container"></div>
+
+  <div class="score-panel">
+    <div class="score-big" id="score-big">—</div>
+    <div class="score-sub" id="score-sub">ANSWER QUESTIONS TO TRACK SCORE</div>
+    <div class="score-bar"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+    <button class="reset-btn" onclick="resetQuiz()">RESET EXAM</button>
+  </div>
+
+</div>
+</div>
+
+<script>
+function sw(id, btn) {
+  document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
+  document.getElementById('mod-' + id).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function iTab(id, btn) {
+  const mod = btn.closest('.module');
+  mod.querySelectorAll('.itab').forEach(t => t.classList.remove('active'));
+  mod.querySelectorAll('.ipanel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ip-' + id).classList.add('active');
+}
+
+const Qs = [
+  {
+    q: "A packed sample shows entropy 7.92 across all sections. Detect-It-Easy shows 'Unknown packer'. The first instruction at the entry point is 0x60 (PUSHAD). What is the fastest reliable unpacking approach?",
+    opts: [
+      "Run strings — high entropy means no readable strings; skip to dynamic analysis",
+      "The 0x60 PUSHAD is the UPX stub signature. Set a hardware BP on ESP-4 access (stack memory), run, land at POPAD, step one more → arrive at OEP. Dump + fix imports with Scylla. Even with 'Unknown' in DIE, PUSHAD at EP + UPX sections = modified UPX",
+      "Use de4dot — it handles all unknown packers automatically",
+      "Set a BP on every import call to intercept the unpacking"
+    ],
+    correct: 1,
+    explain: "<strong>PUSHAD (0x60) at entry point is the UPX stub signature.</strong> Even when the UPX magic bytes are overwritten (causing DIE to say 'Unknown' and upx -d to fail), the stub code is intact. The PUSHAD+POPAD pattern is UPX's register save/restore around the decompression routine. The stack-memory hardware BP trick: after PUSHAD, ESP points to the saved register block. Setting a HW BP on [ESP-4] causes a break when POPAD reads those registers back — immediately followed by the JMP to OEP. This technique works on virtually all PUSHAD-based packers, not just UPX."
+  },
+  {
+    q: "A sample calls IsDebuggerPresent() and terminates if it returns non-zero. You've installed ScyllaHide. The sample STILL terminates. What additional step is required?",
+    opts: [
+      "ScyllaHide should handle this automatically — try reinstalling it",
+      "The termination may be triggered by a TLS callback running BEFORE the entry point. Enable 'TLS Callbacks' breakpoints in x64dbg Options → Events, so x64dbg breaks at each TLS callback before EP is reached",
+      "IsDebuggerPresent cannot be patched — use bare-metal analysis instead",
+      "Add more memory to the VM — IsDebuggerPresent sometimes fails due to RAM limits"
+    ],
+    correct: 1,
+    explain: "<strong>TLS (Thread Local Storage) callbacks execute before the entry point.</strong> x64dbg by default does NOT break on TLS callbacks — it only breaks at the traditional Entry Point. Sophisticated malware places anti-debug checks in TLS callbacks precisely because many analysts and some tools miss them. ScyllaHide patches the Win32 API hooks at EP — but TLS callbacks run before those hooks are in effect. Fix: Options → Events → TLS Callbacks → checked. x64dbg now breaks at each TLS callback, letting you inspect and patch the anti-debug check before it fires."
+  },
+  {
+    q: "You're analyzing shellcode extracted from a memory dump. You find this byte sequence at the start: E8 00 00 00 00 58. In x86 assembly this is: CALL +0 / POP EAX. What is this pattern and why is it significant?",
+    opts: [
+      "A null pointer dereference bug in the shellcode — it will crash before executing",
+      "GetPC (Get Program Counter) — CALL +0 pushes EIP onto the stack, POP EAX retrieves it. EAX now holds the current instruction address. This makes the shellcode position-independent, allowing it to calculate the addresses of embedded strings and code using offsets from EAX",
+      "An anti-debug trick — the 00 00 00 00 bytes form a NOP sled to confuse disassemblers",
+      "An import table stub — CALL +0 is how shellcode calls Windows APIs"
+    ],
+    correct: 1,
+    explain: "<strong>GetPC (Get Program Counter) — the shellcode self-location bootstrap.</strong> CALL pushes the address of the NEXT instruction (EIP) onto the stack, then immediately jumps there (CALL +0 = call relative +0). POP EAX retrieves that address. Result: EAX = address of the POP instruction itself = shellcode's current location in memory. Since shellcode has no fixed load address (position-independent code), it MUST know its own address to access embedded strings, configuration data, and secondary payloads using relative offsets. Everything in the shellcode is accessed as [EAX + offset]. This is seen in virtually every piece of real-world shellcode — recognizing it instantly tells you the shellcode is about to start resolving its internal data."
+  },
+  {
+    q: "Malware implements RDTSC timing checks. ScyllaHide is enabled with the RDTSC patch active, but stepping through the code in x64dbg still sometimes triggers the timing check and alters behavior. What is the most reliable workaround?",
+    opts: [
+      "Increase your CPU speed — faster hardware makes RDTSC deltas smaller",
+      "Switch from software breakpoints (which modify code with 0xCC and require exception handling overhead) to hardware breakpoints (DR0-DR3 registers). Hardware BPs don't slow execution — the CPU hits them at native speed, producing tiny RDTSC deltas that won't trigger the timing threshold",
+      "Disable RDTSC in BIOS settings to prevent the instruction from executing",
+      "Run the sample without any breakpoints and dump memory after execution"
+    ],
+    correct: 1,
+    explain: "<strong>Hardware breakpoints don't stall the CPU; software breakpoints do.</strong> Software BPs work by replacing the instruction byte with 0xCC (INT3), which triggers an exception — the debugger's exception handler runs, which adds significant latency (thousands of cycles). RDTSC before and after a software BP will show a huge delta. Hardware BPs are handled differently: the CPU's debug registers (DR0-DR3) contain addresses to watch. When execution hits a HW BP address, a debug exception fires with minimal overhead — often only a few hundred cycles. Combined with ScyllaHide's RDTSC patching (returns synthetic small deltas), hardware BPs make timing checks much harder to trigger. In x64dbg: right-click instruction → Set Hardware Breakpoint → Execute, or Ctrl+H."
+  },
+  {
+    q: "You extract a PE from a .NET malware sample. Running de4dot produces an output file but the methods still have names like 'a', 'b', 'c' and strings are still encrypted. What does this indicate and what is the next step?",
+    opts: [
+      "de4dot failed completely — the file is not actually .NET",
+      "The obfuscator used is not in de4dot's supported list, OR it uses a custom string decryption method. Next: open in dnSpy, set breakpoints on the static constructor (.cctor) where string initialization happens, run, and inspect the string table after decryption runs",
+      "The sample is packed — run unipacker first before de4dot",
+      "de4dot only renames methods if you use the --rename flag"
+    ],
+    correct: 1,
+    explain: "<strong>Custom or unsupported obfuscator — debug-based string extraction.</strong> de4dot handles ~20 known .NET obfuscators statically. When it can't fully deobfuscate (custom scheme, unsupported version), you get partial results: de4dot may clean up some control flow but can't decrypt strings it doesn't recognize. The workaround: dnSpy is a .NET debugger that lets you set breakpoints on IL code. The static constructor (.cctor) of each class runs before the first class use — this is where string decryption typically happens. Set a breakpoint at the start of .cctor, run, inspect the string table after it executes. The strings will be decrypted in memory and visible in dnSpy's Locals/Watch window. This works regardless of the encryption algorithm because you observe the result after decryption, not reverse the encryption."
+  },
+  {
+    q: "In Ghidra, a function shows hundreds of basic blocks all converging to a single central block, which then dispatches to one of many blocks based on a variable value. All blocks end with: [state_var] = constant; goto dispatcher. What obfuscation technique is this and which tool addresses it?",
+    opts: [
+      "This is an optimized switch statement — Ghidra is correctly displaying the compiler's output",
+      "Control Flow Flattening (CFF) — the original structured code has been transformed into a dispatcher-based state machine. D-810 (Ghidra plugin) or miasm can reconstruct the original control flow by symbolic execution through the dispatcher",
+      "This is a polymorphic engine — the dispatcher regenerates code each time",
+      "This is a heap spray — the central block is the NOP sled target"
+    ],
+    correct: 1,
+    explain: "<strong>Control Flow Flattening (CFF) — the dispatcher-state machine transform.</strong> Every basic block's natural successor is replaced with: (1) update a state variable to a constant, (2) jump back to the central dispatcher. The dispatcher reads the state variable and jumps to the appropriate block. This makes Ghidra's control flow graph look like a wheel with the dispatcher at the center — completely hiding the original if/else/loop structure. D-810 (github.com/jpenalbae/d810) performs symbolic execution through the dispatcher to determine the TRUE successor of each block and reconstructs the original edges. The result is a readable control flow graph. miasm provides similar capabilities via Python scripting for more customized analysis. Without these tools, manually trace the state_var constants to map each block's true successor."
+  },
+  {
+    q: "A shellcode sample contains the value 0xEC0E4E8E as a constant pushed before calling a function. The function appears to iterate over a module's export table. What is 0xEC0E4E8E and how do you resolve it to an API name?",
+    opts: [
+      "It's a memory address — dereference it in x64dbg to find the target",
+      "It's a ROR13 AddHash of an API name — hash each export name of kernel32.dll using the ROR13 algorithm until you find the match, or use the HashDB Ghidra plugin to look it up automatically. 0xEC0E4E8E = LoadLibraryA",
+      "It's an XOR key — XOR all bytes with 0xEC0E4E8E to decrypt the next data blob",
+      "It's an NTSTATUS code — look it up in Windows NTSTATUS documentation"
+    ],
+    correct: 1,
+    explain: "<strong>ROR13 AddHash — the most common shellcode API hashing algorithm.</strong> Shellcode can't import APIs by name (no import table). Instead, it walks the PEB to find loaded modules and iterates their export tables. Each export name is hashed using ROR13 (rotate right 13 bits) + add each byte, until the hash matches the target constant. 0xEC0E4E8E is the well-known ROR13 hash of 'LoadLibraryA\\x00'. Resolution tools: (1) HashDB Ghidra plugin — right-click the constant → HashDB Lookup → automatically identifies the algorithm and function name. (2) Python script: hash every export in common DLLs and build a lookup table. (3) Online HashDB at hashdb.openanalysis.net. Once resolved, rename the constant in Ghidra to 'HASH_LoadLibraryA' — the decompiler becomes dramatically more readable."
+  },
+  {
+    q: "You're debugging a two-stage dropper. Stage 1 decrypts stage 2 and calls WriteProcessMemory to inject it into svchost.exe. You want to capture stage 2 before injection. Where exactly do you set your breakpoint and what do you dump?",
+    opts: [
+      "Set a BP on svchost.exe's entry point — stage 2 will appear there after injection",
+      "Set a BP on WriteProcessMemory. When it fires, the source buffer argument (lpBuffer, stack arg 3 on x86 / R8 on x64) points to the fully decrypted stage 2 PE in memory. Dump [lpBuffer] for lpNumberOfBytesWritten bytes — this is the unobfuscated payload",
+      "Set a BP on ReadProcessMemory — stage 2 is read from the file system before injection",
+      "Set a BP on ExitProcess — stage 2 will be in memory just before the process exits"
+    ],
+    correct: 1,
+    explain: "<strong>WriteProcessMemory BP — capture the payload at the injection moment.</strong> WriteProcessMemory signature: WriteProcessMemory(hProcess, lpBaseAddress, lpBuffer, nSize, lpNumberOfBytesWritten). When BP fires: lpBuffer (3rd argument — ESP+12 on x86, R8 on x64) points to the source data = decrypted stage 2 PE, completely deobfuscated and ready to execute. nSize (4th arg) = exact number of bytes to dump. Right-click the buffer address in x64dbg → Follow in Dump → select the region → Dump to File. The file should start with 4D 5A (MZ) and be a valid PE that you can analyze in Ghidra. This technique works for any injection method that uses WriteProcessMemory — it's always the last moment before the payload disappears into the target process's address space."
+  },
+  {
+    q: "A .NET RAT uses string literals like 'ConnectToHost', 'UploadFile', 'Screenshot' — but all appear XOR-encrypted in the binary. In dnSpy, you can see these strings are decrypted by a static method called 'SR.s(int index)'. What is the most efficient way to extract all decrypted strings without manually calling s() for each index?",
+    opts: [
+      "Decompile the SR.s() method in dnSpy and re-implement it in Python — then iterate all indices",
+      "Add a debug breakpoint at the start of SR.s() — strings will decrypt one at a time as they're needed during execution",
+      "Patch the binary to call Console.WriteLine(SR.s(i)) for each index in a loop, compile and run in the VM — output captures all strings at once. Or: use dnSpy Edit → Modify Method to add a logging hook to SR.s() that prints each decrypted string as it's called",
+      "Delete the encryption — remove the static constructor to bypass decryption"
+    ],
+    correct: 2,
+    explain: "<strong>Dynamic string extraction via code patching or hooking.</strong> The most efficient approach: (1) In dnSpy, find the Main() method (or any early method). Click Edit C# (right-click → Edit Method). Add a loop: <code>for (int i=0; i<1000; i++) { try { Console.WriteLine(i + \":\" + SR.s(i)); } catch {} }</code> before the first line. Compile. Run in the VM. Every string dumps to console. (2) Alternative: add a Console.WriteLine call inside SR.s() itself — then run normally and all strings print as they're decrypted. This approach requires running the malware (in isolated VM) but is far faster than manually re-implementing the decryption. The try/catch handles out-of-bounds indices gracefully. This technique extracts ALL strings in one execution without reversing the encryption algorithm."
+  },
+  {
+    q: "After unpacking a sample with the OEP method (dumped + fixed imports with Scylla), you load the dump into Ghidra but the decompiler shows many calls to 'FUN_00000000' (null address) and the import table seems corrupt. What likely went wrong and how do you fix it?",
+    opts: [
+      "The dump is encrypted — run it through unipacker before loading into Ghidra",
+      "Scylla's IAT fix was incomplete — some import thunks weren't resolved. Fix: (1) In Scylla, use 'IAT Autosearch' again with the process still running at OEP, (2) Manually add missing imports via 'Add Import' in Scylla for any that show '??' or null, (3) Alternatively, use CFF Explorer to manually fix the import table in the dumped PE by adding the missing DLL/function entries",
+      "The dump is the wrong architecture — re-dump as 64-bit instead of 32-bit",
+      "Ghidra doesn't support dumped PEs — use IDA Pro instead"
+    ],
+    correct: 1,
+    explain: "<strong>Incomplete IAT (Import Address Table) fix — the most common post-dump issue.</strong> Scylla's IAT Autosearch works by scanning the dumped PE for pointers to resolved API addresses and tracing them back to the DLL+function name. It fails when: (1) The packer uses delayed imports, (2) Some APIs are called via computed pointers (not the standard IAT), (3) Anti-dump protection modified the memory layout. Fix sequence: with the process still running at OEP (don't close it!), run Scylla IAT Autosearch again. For each entry showing '??' or null: right-click → 'Get Imports' manually, or use 'Add Import' to specify the DLL and function name. CFF Explorer can also manually repair import directory entries. The key insight: Scylla works best when the process is still alive at OEP — closing it loses the resolved API address information in memory."
+  }
+];
+
+let answered = new Array(Qs.length).fill(false);
+let score = 0;
+const topics = ['Packer Recognition','Anti-Debug TLS','Shellcode GetPC','RDTSC Bypass','.NET Deobfuscation','Control Flow Flattening','API Hashing','Injection Capture','String Extraction','IAT Repair'];
+
+function buildQuiz() {
+  const c = document.getElementById('quiz-container');
+  c.innerHTML = '';
+  Qs.forEach((q, qi) => {
+    const d = document.createElement('div');
+    d.className = 'qcard';
+    d.innerHTML = `
+      <div class="qnum">Q${String(qi+1).padStart(2,'0')} · ${topics[qi]}</div>
+      <div class="qtext">${q.q}</div>
+      <div class="qopts">${q.opts.map((o,oi) => `<button class="qopt" onclick="ans(${qi},${oi},this)">${String.fromCharCode(65+oi)}. ${o}</button>`).join('')}</div>
+      <div class="qexplain" id="exp-${qi}">${q.explain}</div>
+    `;
+    c.appendChild(d);
+  });
+  updateScore();
+}
+
+function ans(qi, oi, btn) {
+  if (answered[qi]) return;
+  answered[qi] = true;
+  btn.closest('.qopts').querySelectorAll('.qopt').forEach(b => b.classList.add('locked'));
+  if (oi === Qs[qi].correct) { btn.classList.add('correct'); score++; }
+  else { btn.classList.add('wrong'); btn.closest('.qopts').querySelectorAll('.qopt')[Qs[qi].correct].classList.add('correct'); }
+  document.getElementById('exp-' + qi).classList.add('show');
+  updateScore();
+}
+
+function updateScore() {
+  const done = answered.filter(Boolean).length;
+  const big = document.getElementById('score-big');
+  const sub = document.getElementById('score-sub');
+  const fill = document.getElementById('score-fill');
+  if (done === 0) { big.textContent = '—'; sub.textContent = 'ANSWER QUESTIONS TO TRACK SCORE'; return; }
+  const pct = Math.round(score / done * 100);
+  big.textContent = `${score}/${done}`;
+  const rem = Qs.length - done;
+  sub.textContent = rem > 0 ? `${pct}% CORRECT · ${rem} REMAINING` : pct >= 80 ? `${pct}% · ADVANCED RE CERTIFIED` : pct >= 60 ? `${pct}% · REVIEW WEAK AREAS` : `${pct}% · REPEAT MODULE`;
+  fill.style.width = pct + '%';
+  fill.style.background = pct >= 80 ? '#0aff5a' : pct >= 60 ? '#ffb800' : '#ff1a2e';
+}
+
+function resetQuiz() {
+  answered = new Array(Qs.length).fill(false);
+  score = 0;
+  buildQuiz();
+}
+
+buildQuiz();
+</script>
+</body>
+</html>

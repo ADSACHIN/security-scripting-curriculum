@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THREATINT//09 — Threat Intelligence Engineering</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Cinzel:wght@400;600;700&family=Inconsolata:wght@300;400;600;700&display=swap');
+
+:root {
+  --bond:    #020810;
+  --bond2:   #050e1f;
+  --bond3:   #081428;
+  --bond4:   #102448;
+  --burg:    #00c8ff;
+  --burg2:   #0098cc;
+  --burg3:   #003d5c;
+  --ink:     #b0cce0;
+  --ink2:    #d8ecf8;
+  --navy:    #00ffcc;
+  --navy2:   #00cc99;
+  --gold:    #ffb86b;
+  --gold2:   #ffd089;
+  --rust:    #ff8c1a;
+  --dim:     #6e8ba1;
+  --muted:   #16314a;
+  --rule:    #0a1a2a;
+
+  --serif: 'Cormorant Garamond', serif;
+  --display: 'Cinzel', serif;
+  --mono: 'Inconsolata', monospace;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+
+body {
+  background: var(--bond);
+  color: var(--ink);
+  font-family: var(--serif);
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 16px;
+}
+
+/* ── PAPER TEXTURE + AGED EDGES ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 0%, rgba(0,200,255,.06) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(0,255,204,.05) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+/* Margin red line (classified document feel) */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 52px; bottom: 0;
+  width: 1px;
+  background: rgba(0,200,255,.12);
+  pointer-events: none; z-index: 0;
+}
+
+.z1{position:relative;z-index:1}
+
+/* ── CLASSIFICATION BANNER ── */
+.classbar {
+  background: var(--burg);
+  color: #f4edd8;
+  text-align: center;
+  padding: 5px 0;
+  font-family: var(--display);
+  font-size: .65rem;
+  letter-spacing: 6px;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+  z-index: 300;
+  border-bottom: 2px solid var(--burg3);
+}
+
+/* ── NAV ── */
+nav {
+  position: sticky;
+  top: 28px;
+  z-index: 200;
+  background: var(--bond);
+  border-bottom: 2px solid var(--rule);
+  border-top: 1px solid var(--rule);
+  display: flex; align-items: stretch;
+  overflow-x: auto; scrollbar-width: none;
+  box-shadow: 0 2px 12px rgba(26,15,8,.08);
+}
+nav::-webkit-scrollbar{display:none}
+
+.nav-brand {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 28px;
+  border-right: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+.nav-seal {
+  width: 36px; height: 36px;
+  border: 2px solid var(--burg);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.nav-seal::after {
+  content: '09';
+  font-family: var(--display);
+  font-size: .58rem;
+  font-weight: 700;
+  color: var(--burg);
+  letter-spacing: 1px;
+}
+.nav-brand-text {
+  font-family: var(--display);
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.nav-brand-sub {
+  font-family: var(--mono);
+  font-size: .48rem;
+  color: var(--dim);
+  letter-spacing: 2px;
+}
+
+.ntabs{display:flex}
+.ntab {
+  font-family: var(--display);
+  font-size: .55rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 0 18px;
+  cursor: pointer;
+  color: var(--dim);
+  background: none; border: none;
+  border-right: 1px solid var(--rule);
+  white-space: nowrap;
+  transition: all .2s;
+}
+.ntab:hover{color:var(--burg);background:rgba(107,20,35,.04)}
+.ntab.active{color: var(--bond);background:var(--burg);letter-spacing:3px}
+
+/* ── HERO — CLASSIFIED COVER PAGE ── */
+.hero {
+  padding: 64px 80px 56px;
+  border-bottom: 2px solid var(--rule);
+  position: relative;
+  overflow: hidden;
+  min-height: 280px;
+  display: flex; gap: 60px; align-items: flex-start;
+}
+@media(max-width:780px){.hero{padding:40px 24px 36px;flex-direction:column;gap:24px}}
+
+/* Watermark */
+.hero::before {
+  content: 'THREAT INTELLIGENCE';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%) rotate(-15deg);
+  font-family: var(--display);
+  font-size: 5rem;
+  font-weight: 700;
+  color: rgba(107,20,35,.04);
+  letter-spacing: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero-main { flex: 1; position: relative; z-index: 1; }
+
+.hero-file-num {
+  font-family: var(--mono);
+  font-size: .6rem;
+  letter-spacing: 4px;
+  color: var(--dim);
+  margin-bottom: 18px;
+  display: flex; align-items: center; gap: 16px;
+}
+.hero-file-num::before {
+  content: 'FILE NO.';
+  font-family: var(--display);
+  font-size: .55rem;
+  letter-spacing: 3px;
+  color: var(--muted);
+}
+
+.hero-h1 {
+  font-family: var(--display);
+  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 3px;
+  color: var(--ink);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.hero-h2 {
+  font-family: var(--display);
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  font-weight: 400;
+  letter-spacing: 4px;
+  color: var(--burg);
+  margin-bottom: 24px;
+  text-transform: uppercase;
+}
+
+.hero-divider {
+  width: 80px; height: 2px;
+  background: var(--burg);
+  margin-bottom: 20px;
+}
+
+.hero-desc {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--dim);
+  line-height: 1.85;
+  font-weight: 300;
+  font-style: italic;
+  max-width: 520px;
+  margin-bottom: 24px;
+}
+
+.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.htag {
+  font-family: var(--display);
+  font-size: .52rem;
+  letter-spacing: 2px;
+  padding: 4px 12px;
+  border: 1px solid var(--rule);
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+/* Classification block */
+.hero-classblock {
+  width: 220px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.class-stamp {
+  border: 3px solid var(--burg);
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+  transform: rotate(2deg);
+}
+.class-stamp::before {
+  content: '';
+  position: absolute; inset: 4px;
+  border: 1px solid rgba(107,20,35,.3);
+}
+.class-label {
+  font-family: var(--display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--burg);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+.class-sub {
+  font-family: var(--mono);
+  font-size: .48rem;
+  letter-spacing: 3px;
+  color: var(--burg2);
+  text-transform: uppercase;
+}
+
+.meta-list { list-style: none; }
+.meta-list li {
+  display: flex; gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: .82rem;
+}
+.meta-list li:last-child{border-bottom:none}
+.meta-key {
+  font-family: var(--display);
+  font-size: .52rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  min-width: 70px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.meta-val {
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--ink);
+}
+
+/* ── MODULE / WRAPPER ── */
+.module{display:none}
+.module.active{display:block}
+.wrapper{max-width:1100px;margin:0 auto;padding:52px 80px 80px}
+@media(max-width:640px){.wrapper{padding:28px 24px 60px}}
+
+/* ── SECTION HEADER ── */
+.sh {
+  margin-bottom: 36px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: flex-start; gap: 24px;
+}
+.sh-num {
+  font-family: var(--display);
+  font-size: 3rem;
+  font-weight: 700;
+  color: rgba(107,20,35,.12);
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 4px;
+  letter-spacing: -2px;
+}
+.sh-body{}
+.sh-eyebrow {
+  font-family: var(--display);
+  font-size: .5rem;
+  letter-spacing: 5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.sh-title {
+  font-family: var(--display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.sh-title .hl{color:var(--burg)}
+.sh-desc {
+  font-family: var(--serif);
+  font-size: 1rem;
+  color: var(--dim);
+  line-height: 1.7;
+  font-weight: 300;
+  font-style: italic;
+  max-width: 680px;
+}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.gasym{display:grid;grid-template-columns:1.5fr 1fr;gap:18px}
+@media(max-width:820px){.g2,.g3,.gasym{grid-template-columns:1fr}}
+
+/* ── CARDS — document/report style ── */
+.card {
+  background: var(--bond);
+  border: 1px solid var(--rule);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .2s;
+}
+.card:hover{box-shadow:3px 3px 0 var(--bond3)}
+
+/* colored left border */
+.cb2{border-left:3px solid var(--burg)}
+.cn {border-left:3px solid var(--navy)}
+.cg {border-left:3px solid var(--gold)}
+.cr {border-left:3px solid var(--rust)}
+
+.clabel {
+  font-family: var(--display);
+  font-size: .48rem;
+  letter-spacing: 4px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.ctitle {
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.ctitle.burg{color:var(--burg)}
+.ctitle.navy{color:var(--navy)}
+.ctitle.gold{color:var(--gold)}
+.ctitle.rust{color:var(--rust)}
+
+.cbody {
+  font-family: var(--serif);
+  font-size: .95rem;
+  color: var(--dim);
+  line-height: 1.8;
+  font-weight: 300;
+}
+.cbody strong{color:var(--ink);font-weight:600}
+.cbody em{font-style:italic;color:var(--dim)}
+.cbody code{
+  font-family:var(--mono);font-size:.78rem;
+  color:var(--burg);
+  background:rgba(107,20,35,.06);
+  padding:1px 5px;
+  border:1px solid rgba(107,20,35,.12);
+}
+
+/* ── CODE / TECHNICAL BLOCKS ── */
+.cb {
+  background: var(--bond2);
+  border: 1px solid rgba(0,200,255,.14);
+  border-left: 3px solid var(--cb-accent, rgba(0,200,255,.6));
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: .68rem;
+  font-weight: 400;
+  line-height: 1.95;
+  overflow-x: auto;
+  margin: 12px 0;
+  color: var(--ink);
+  position: relative;
+}
+.cb .tag{
+  position:absolute;top:6px;right:10px;
+  font-family:var(--display);font-size:.48rem;letter-spacing:3px;
+  color:rgba(244,237,216,.2);text-transform:uppercase;
+}
+.K{color:#ffb86b;font-weight:700}
+.F{color:#00ffcc}
+.S{color:#d8ecf8}
+.N{color:#ff8c1a}
+.C{color:#6e8ba1;font-style:italic}
+.V{color:#8fbfff}
+.H{color:#b0cce0}
+.R{color:#ff6b7a}
+.G{color:#78ffd8}
+.Y{color:#ffb86b}
+.W{color:#e6f7ff}
+.P{color:#c7a5ff}
+.BL{color:#7fb7ff}
+
+/* ── INLINE QUOTE ── */
+.dossier-quote {
+  border-left: 3px solid var(--burg);
+  margin: 18px 0;
+  padding: 12px 20px;
+  background: rgba(107,20,35,.04);
+}
+.dossier-quote p {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--ink2);
+  line-height: 1.7;
+  margin-bottom: 6px;
+}
+.dossier-quote cite {
+  font-family: var(--display);
+  font-size: .52rem;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ── ALERT ── */
+.alert{
+  border:1px solid;padding:12px 16px;margin:12px 0;
+  font-family:var(--serif);font-size:.93rem;line-height:1.65;font-weight:300;
+  border-left:3px solid;
+}
+.alert strong{font-weight:700}
+.a-warn{border-color:rgba(138,107,32,.4);color:var(--gold);background:rgba(138,107,32,.06)}
+.a-info{border-color:rgba(14,30,58,.3);color:var(--navy);background:rgba(14,30,58,.05)}
+.a-ok  {border-color:rgba(107,20,35,.3);color:var(--burg);background:rgba(107,20,35,.05)}
+.a-err {border-color:rgba(139,58,26,.4);color:var(--rust);background:rgba(139,58,26,.06)}
+
+/* ── TABLE ── */
+.dtable{width:100%;border-collapse:collapse;margin:12px 0;font-size:.88rem}
+.dtable th{
+  font-family:var(--display);font-size:.52rem;letter-spacing:2px;text-transform:uppercase;
+  padding:9px 14px;text-align:left;
+  background:var(--bond2);color:var(--ink2);
+  border:1px solid rgba(0,200,255,.14);
+}
+.dtable td{
+  font-family:var(--serif);font-weight:300;
+  padding:9px 14px;border:1px solid var(--rule);
+  vertical-align:top;line-height:1.5;color:var(--dim);
+}
+.dtable tr:nth-child(even) td{background:var(--bond2)}
+.dtable tr:hover td{background:var(--bond3);color:var(--ink)}
+.dtable td strong{color:var(--ink);font-weight:600}
+.dtable td code{font-family:var(--mono);font-size:.73rem;color:var(--burg)}
+.tc-r{color:var(--burg)!important;font-family:var(--display);font-size:.65rem;font-weight:700;letter-spacing:1px}
+.tc-y{color:var(--gold)!important;font-family:var(--display);font-size:.65rem;font-weight:700;letter-spacing:1px}
+.tc-g{color:var(--navy)!important;font-family:var(--display);font-size:.65rem;font-weight:700;letter-spacing:1px}
+
+/* ── DIVIDER ── */
+.divline{height:1px;background:var(--rule);margin:28px 0}
+.divline-ornament{
+  text-align:center;margin:24px 0;color:var(--muted);
+  font-size:.8rem;letter-spacing:8px;
+}
+
+/* ── BADGES ── */
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.badge{
+  font-family:var(--display);font-size:.5rem;letter-spacing:2px;
+  padding:3px 10px;border:1px solid;text-transform:uppercase;
+}
+.bb{color:var(--burg2);border-color:var(--burg3);background:rgba(107,20,35,.07)}
+.bn{color:var(--navy2);border-color:var(--navy);background:rgba(14,30,58,.07)}
+.bg{color:var(--gold);border-color:var(--gold2);background:rgba(138,107,32,.07)}
+.br{color:var(--rust);border-color:rgba(139,58,26,.5);background:rgba(139,58,26,.07)}
+
+/* ── IN-PAGE TABS ── */
+.itabs{
+  display:flex;border-bottom:1px solid var(--rule);
+  margin-bottom:0;overflow-x:auto;scrollbar-width:none;
+}
+.itabs::-webkit-scrollbar{display:none}
+.itab{
+  font-family:var(--display);font-size:.52rem;letter-spacing:2px;text-transform:uppercase;
+  padding:10px 18px;cursor:pointer;color:var(--muted);
+  background:none;border:none;border-bottom:2px solid transparent;
+  margin-bottom:-1px;white-space:nowrap;transition:all .2s;
+}
+.itab:hover{color:var(--ink)}
+.itab.active{color:var(--burg);border-bottom-color:var(--burg)}
+.ipanel{display:none;padding-top:20px}
+.ipanel.active{display:block}
+
+/* ── QUIZ ── */
+.qcard{
+  background:var(--bond);border:1px solid var(--rule);
+  padding:24px;margin-bottom:14px;
+  position:relative;overflow:hidden;
+  box-shadow:1px 1px 0 var(--bond3);
+}
+.qcard::after{
+  content:'Q';
+  position:absolute;top:-10px;right:20px;
+  font-family:var(--display);font-size:5rem;font-weight:700;
+  color:rgba(107,20,35,.04);line-height:1;
+  pointer-events:none;
+}
+.qnum{
+  font-family:var(--display);font-size:.5rem;letter-spacing:4px;
+  color:var(--muted);margin-bottom:8px;text-transform:uppercase;
+}
+.qtext{
+  font-family:var(--serif);font-size:1.05rem;font-weight:600;
+  color:var(--ink);margin-bottom:16px;line-height:1.55;
+}
+.qopts{display:flex;flex-direction:column;gap:6px}
+.qopt{
+  font-family:var(--mono);font-size:.7rem;
+  padding:10px 14px;border:1px solid var(--rule);
+  background:var(--bond2);color:var(--dim);
+  text-align:left;cursor:pointer;transition:all .18s;line-height:1.45;
+}
+.qopt:hover:not(.locked){border-color:var(--burg);color:var(--burg);background:rgba(107,20,35,.05)}
+.qopt.correct{border-color:var(--navy);background:rgba(14,30,58,.08);color:var(--navy2)}
+.qopt.wrong  {border-color:var(--burg3);background:rgba(107,20,35,.07);color:var(--burg)}
+.qexplain{
+  margin-top:12px;padding:12px 16px;
+  background:var(--bond2);border-left:2px solid var(--burg);
+  font-family:var(--serif);font-size:.93rem;color:var(--dim);
+  line-height:1.7;display:none;font-style:italic;
+}
+.qexplain.show{display:block}
+.qexplain strong{color:var(--burg);font-weight:700;font-style:normal}
+.qexplain code{font-family:var(--mono);font-size:.73rem;color:var(--burg);font-style:normal}
+
+.score-panel{
+  background:var(--bond2);border:1px solid var(--rule);
+  border-top:3px solid var(--burg);
+  padding:32px;text-align:center;margin-top:20px;
+}
+.score-big{
+  font-family:var(--display);font-size:4rem;font-weight:700;
+  color:var(--burg);line-height:1;margin-bottom:6px;letter-spacing:2px;
+}
+.score-sub{
+  font-family:var(--display);font-size:.52rem;letter-spacing:4px;
+  color:var(--muted);text-transform:uppercase;margin-bottom:16px;
+}
+.score-bar{height:3px;background:var(--rule);max-width:300px;margin:0 auto 16px}
+.score-fill{height:100%;transition:width .5s}
+.reset-btn{
+  font-family:var(--display);font-size:.55rem;letter-spacing:3px;text-transform:uppercase;
+  padding:10px 28px;background:var(--burg);color:var(--bond);
+  border:none;cursor:pointer;transition:all .2s;
+}
+.reset-btn:hover{background:var(--burg3)}
+</style>
+</head>
+<body>
+
+<!-- CLASSIFICATION BANNER -->
+<div class="classbar z1">THREAT INTELLIGENCE ENGINEERING — MODULE 09 — FOR TRAINING PURPOSES ONLY</div>
+
+<!-- NAV -->
+<nav class="z1">
+  <div class="nav-brand">
+    <div class="nav-seal"></div>
+    <div>
+      <div class="nav-brand-text">Threat Intelligence</div>
+      <div class="nav-brand-sub">Module 09 — Engineering</div>
+    </div>
+  </div>
+  <div class="ntabs">
+    <button class="ntab active" onclick="sw('overview',this)">Overview</button>
+    <button class="ntab" onclick="sw('lifecycle',this)">Intel Lifecycle</button>
+    <button class="ntab" onclick="sw('stix',this)">STIX / TAXII</button>
+    <button class="ntab" onclick="sw('ttp',this)">TTP-Based Intel</button>
+    <button class="ntab" onclick="sw('actors',this)">Actor Profiling</button>
+    <button class="ntab" onclick="sw('feeds',this)">Feeds & Platforms</button>
+    <button class="ntab" onclick="sw('fusion',this)">Intel Fusion</button>
+    <button class="ntab" onclick="sw('quiz',this)">Assessment</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero z1">
+  <div class="hero-main">
+    <div class="hero-file-num">THREATINT-2025-09-ALPHA</div>
+    <h1 class="hero-h1">Threat Intelligence</h1>
+    <div class="hero-h2">Engineering</div>
+    <div class="hero-divider"></div>
+    <p class="hero-desc">The systematic production, analysis, and operationalization of intelligence about adversaries — their capabilities, infrastructure, intent, and techniques. From raw IOC feeds to finished analytical products that drive detection and response decisions.</p>
+    <div class="hero-tags">
+      <span class="htag">STIX 2.1</span>
+      <span class="htag">TAXII</span>
+      <span class="htag">MITRE ATT&CK</span>
+      <span class="htag">Diamond Model</span>
+      <span class="htag">IOC Lifecycle</span>
+      <span class="htag">Actor Profiling</span>
+    </div>
+  </div>
+  <div class="hero-classblock">
+    <div class="class-stamp">
+      <span class="class-label">TLP: GREEN</span>
+      <span class="class-sub">Community Sharing</span>
+    </div>
+    <ul class="meta-list">
+      <li><span class="meta-key">Series</span><span class="meta-val">THREATINT-09</span></li>
+      <li><span class="meta-key">Domain</span><span class="meta-val">Cyber Threat Intel</span></li>
+      <li><span class="meta-key">Standard</span><span class="meta-val">STIX 2.1 / TAXII 2.1</span></li>
+      <li><span class="meta-key">Framework</span><span class="meta-val">MITRE ATT&CK</span></li>
+      <li><span class="meta-key">Level</span><span class="meta-val">Advanced</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════ OVERVIEW ═══════════════ -->
+<div class="module active z1" id="mod-overview">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">09</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// The Intelligence Discipline //</div>
+      <div class="sh-title">What Is <span class="hl">Threat Intelligence</span></div>
+      <div class="sh-desc">Threat intelligence is not a feed of IP addresses. It is the analytical process of converting raw data into knowledge that drives better security decisions — faster, with higher confidence, at lower cost.</div>
+    </div>
+  </div>
+
+  <div class="dossier-quote">
+    <p>"Intelligence is information that has been collected, processed, and analyzed to meet the needs of policymakers. Threat intelligence is no different — the consumer is the security team, and the policy decision is how to allocate defensive resources."</p>
+    <cite>— Intelligence Community doctrine, adapted for CTI</cite>
+  </div>
+
+  <!-- Intelligence types -->
+  <div class="g3" style="margin-bottom:20px">
+    <div class="card cb2">
+      <div class="clabel">Strategic</div>
+      <div class="ctitle burg">Strategic Intel</div>
+      <div class="cbody">
+        <p style="margin-bottom:8px"><strong>Audience:</strong> CISO, Board, Risk Teams</p>
+        <p style="margin-bottom:8px"><strong>Horizon:</strong> Months to years</p>
+        <p>High-level threat landscape analysis, geopolitical context, industry targeting trends, adversary motivation assessments. Answers: <em>what threats should we care about and why?</em></p>
+      </div>
+      <div class="badges"><span class="badge bb">Reports</span><span class="badge bb">Briefings</span></div>
+    </div>
+    <div class="card cn">
+      <div class="clabel">Operational</div>
+      <div class="ctitle navy">Operational Intel</div>
+      <div class="cbody">
+        <p style="margin-bottom:8px"><strong>Audience:</strong> Security Managers, IR leads</p>
+        <p style="margin-bottom:8px"><strong>Horizon:</strong> Days to weeks</p>
+        <p>Specific campaigns, TTPs of active threat actors, infrastructure details. Answers: <em>is this actor targeting our sector? What are they doing right now?</em></p>
+      </div>
+      <div class="badges"><span class="badge bn">Campaigns</span><span class="badge bn">TTPs</span></div>
+    </div>
+    <div class="card cg">
+      <div class="clabel">Tactical</div>
+      <div class="ctitle gold">Tactical Intel</div>
+      <div class="cbody">
+        <p style="margin-bottom:8px"><strong>Audience:</strong> SOC Analysts, Detection Engineers</p>
+        <p style="margin-bottom:8px"><strong>Horizon:</strong> Hours to days</p>
+        <p>IOCs, malware hashes, C2 IPs, YARA rules, Sigma rules. Directly consumable by defensive tools. Answers: <em>block/detect this specific indicator now.</em></p>
+      </div>
+      <div class="badges"><span class="badge bg">IOCs</span><span class="badge bg">Rules</span></div>
+    </div>
+  </div>
+
+  <!-- Pyramid of Pain applied to TI -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="clabel">Foundational Model</div>
+    <div class="ctitle">THE F3EAD INTELLIGENCE CYCLE</div>
+    <div class="cbody" style="margin-bottom:14px">The military intelligence F3EAD cycle adapted for cyber threat intelligence — the operational loop that turns raw data into actionable decisions.</div>
+    <div class="cb">
+<span class="C">####################################################################</span>
+<span class="C"># F3EAD CYCLE — CTI Production Process</span>
+<span class="C">####################################################################</span>
+
+<span class="K">FIND</span>         Identify adversary activity (detection, hunting, OSINT)
+               → Malware sample, intrusion indicator, threat report
+
+<span class="K">FIX</span>          Establish actor attribution and campaign context
+               → Map to known threat actor? New group? Which campaign?
+
+<span class="K">FINISH</span>       Operational response (IR, takedown, remediation)
+               → Isolate host, sinkhole domain, block IP, patch vuln
+
+<span class="K">EXPLOIT</span>      Extract maximum intelligence value from the encounter
+               → Reverse engineer malware, extract C2 config, map infra
+
+<span class="K">ANALYZE</span>      Produce finished intelligence product
+               → Write report, create STIX objects, author detection rules
+
+<span class="K">DISSEMINATE</span>  Share intelligence with relevant consumers
+               → ISAC sharing, internal SIEM feed, vendor enrichment
+
+<span class="C">     ┌──────────────────────────────────────────────────────┐</span>
+<span class="C">     │              LOOP: Disseminate → Find                │</span>
+<span class="C">     │  Shared intel helps others Find their own activity   │</span>
+<span class="C">     └──────────────────────────────────────────────────────┘</span></div>
+  </div>
+
+  <!-- Diamond model -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="clabel">Analytical Framework</div>
+    <div class="ctitle">THE DIAMOND MODEL OF INTRUSION ANALYSIS</div>
+    <div class="cbody" style="margin-bottom:12px">Every intrusion event has four core features. Pivoting across these relationships reveals campaign connections invisible when looking at individual indicators.</div>
+    <div class="g2">
+      <div class="cb">
+<span class="C">              ADVERSARY</span>
+<span class="C">              (who attacked?)</span>
+<span class="C">                  ◆</span>
+<span class="C">                /   \</span>
+<span class="C">               /     \</span>
+<span class="C">  CAPABILITY ◆         ◆ INFRASTRUCTURE</span>
+<span class="C">  (what tools?)         (what servers/domains?)</span>
+<span class="C">               \     /</span>
+<span class="C">                \   /</span>
+<span class="C">                  ◆</span>
+<span class="C">               VICTIM</span>
+<span class="C">              (who was targeted?)</span>
+
+<span class="Y">PIVOTING EXAMPLES:</span>
+  Same C2 IP → links two campaigns → same adversary
+  Same malware hash → same capability → same developer
+  Same victim sector → same targeting pattern → same intent
+  Same infrastructure → maps actor's full operation</div>
+      <div class="cb">
+<span class="C"># Diamond Model applied to real investigation</span>
+
+<span class="Y">ADVERSARY:</span>   Unknown (call it UNC-1234)
+<span class="Y">CAPABILITY:</span>  Custom implant "GHOSTRAT" variant
+              → Ghidra analysis → shared code with APT41
+<span class="Y">INFRA:</span>       185.220.x.x / ghostsvc.com
+              → Passive DNS → previously used by APT41
+<span class="Y">VICTIM:</span>      Healthcare sector, India-based
+
+<span class="G">CONCLUSION:</span>
+  Capability + Infrastructure overlap → link to APT41
+  Victim sector = aligns with APT41 espionage targeting
+  → High confidence attribution to APT41 nexus
+  → Produce finished intel product
+  → Share via ISAC, update detection rules</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ LIFECYCLE ═══════════════ -->
+<div class="module z1" id="mod-lifecycle">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">01</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// From Collection to Retirement //</div>
+      <div class="sh-title">The IOC <span class="hl">Lifecycle</span></div>
+      <div class="sh-desc">Indicators of Compromise have a lifespan. Treating them as permanent truths — never retiring stale IOCs — is as dangerous as not having them. This section covers the full lifecycle from collection through expiry.</div>
+    </div>
+  </div>
+
+  <div class="dossier-quote">
+    <p>"An IOC that is never retired is not intelligence — it is noise. Every false positive erodes analyst trust in the entire feed, eventually rendering it ignored."</p>
+    <cite>— CTI Operations Principle</cite>
+  </div>
+
+  <!-- IOC decay rates -->
+  <div class="card cb2" style="margin-bottom:18px">
+    <div class="clabel">Indicator Half-Life — By Type</div>
+    <div class="ctitle burg">IOC DECAY RATES</div>
+    <div class="cbody" style="margin-bottom:12px">Different indicator types decay at radically different rates. A hash is stable for months; an IP address may be benign infrastructure within 24 hours.</div>
+    <table class="dtable">
+      <tr><th>INDICATOR TYPE</th><th>TYPICAL LIFESPAN</th><th>DECAY CAUSE</th><th>RETIREMENT TRIGGER</th></tr>
+      <tr>
+        <td><strong>File Hash (SHA-256)</strong></td>
+        <td>Months to indefinite</td>
+        <td>Malware recompile changes hash</td>
+        <td class="tc-g">STABLE</td>
+      </tr>
+      <tr>
+        <td><strong>C2 Domain</strong></td>
+        <td>Days to weeks</td>
+        <td>Attacker rotates infrastructure post-detection</td>
+        <td class="tc-y">30+ days no activity</td>
+      </tr>
+      <tr>
+        <td><strong>C2 IP Address</strong></td>
+        <td>Hours to days</td>
+        <td>Shared hosting reassigned; attacker rotates</td>
+        <td class="tc-r">7 days unless confirmed active</td>
+      </tr>
+      <tr>
+        <td><strong>URL / URI Path</strong></td>
+        <td>Hours to days</td>
+        <td>Attacker changes staging path easily</td>
+        <td class="tc-r">72 hours if not confirmed</td>
+      </tr>
+      <tr>
+        <td><strong>Email Sender Address</strong></td>
+        <td>Single use</td>
+        <td>Free disposable accounts used once</td>
+        <td class="tc-r">Single-use: retire immediately after campaign</td>
+      </tr>
+      <tr>
+        <td><strong>JA3 TLS Fingerprint</strong></td>
+        <td>Weeks to months</td>
+        <td>Attacker changes TLS config or tool version</td>
+        <td class="tc-y">MEDIUM stability</td>
+      </tr>
+      <tr>
+        <td><strong>Import Hash (imphash)</strong></td>
+        <td>Months</td>
+        <td>Recompile with same libs → same imphash</td>
+        <td class="tc-g">HIGH stability — family-level indicator</td>
+      </tr>
+      <tr>
+        <td><strong>YARA Rule</strong></td>
+        <td>Months to years</td>
+        <td>Attacker becomes aware → modifies payload</td>
+        <td class="tc-g">Retire only when false positive rate rises</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- IOC lifecycle automation -->
+  <div class="g2">
+    <div class="card cb2">
+      <div class="clabel">Automated Lifecycle Management</div>
+      <div class="ctitle burg">IOC SCORING & EXPIRY SYSTEM</div>
+      <div class="cbody" style="margin-bottom:10px">A scoring system that increases IOC confidence on re-sighting and decays it over time — automatically retiring stale indicators.</div>
+      <div class="cb" style="--cb-accent:var(--burg)">
+<span class="tag">PYTHON</span>
+<span class="K">from</span> dataclasses <span class="K">import</span> dataclass, field
+<span class="K">from</span> datetime <span class="K">import</span> datetime, timedelta, timezone
+<span class="K">from</span> enum <span class="K">import</span> Enum
+<span class="K">import</span> math
+
+<span class="K">class</span> <span class="F">IOCType</span>(Enum):
+    HASH   = (<span class="S">"hash"</span>,   <span class="N">365</span>)  <span class="C"># (name, half_life_days)</span>
+    DOMAIN = (<span class="S">"domain"</span>, <span class="N">30</span>)
+    IP     = (<span class="S">"ip"</span>,     <span class="N">7</span>)
+    URL    = (<span class="S">"url"</span>,    <span class="N">3</span>)
+    YARA   = (<span class="S">"yara"</span>,   <span class="N">180</span>)
+
+    <span class="K">def</span> <span class="F">half_life</span>(self): <span class="K">return</span> self.value[<span class="N">1</span>]
+
+@dataclass
+<span class="K">class</span> <span class="F">IOC</span>:
+    value:      str
+    ioc_type:   IOCType
+    first_seen: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_seen:  datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    sightings:  int = <span class="N">1</span>
+    base_score: float = <span class="N">50.0</span>    <span class="C"># 0-100</span>
+
+    <span class="K">def</span> <span class="F">current_score</span>(self) -> float:
+        <span class="S">"""Score decays over time, rises with sightings."""</span>
+        now = datetime.now(timezone.utc)
+        days_since = (now - self.last_seen).days
+        half_life  = self.ioc_type.half_life()
+        <span class="C"># Exponential decay</span>
+        decay = math.exp(-0.693 * days_since / half_life)
+        <span class="C"># Sighting boost (log scale — diminishing returns)</span>
+        sight_boost = min(30, 5 * math.log(self.sightings + 1))
+        <span class="K">return</span> round((self.base_score + sight_boost) * decay, <span class="N">1</span>)
+
+    <span class="K">def</span> <span class="F">is_active</span>(self, threshold=<span class="N">10.0</span>) -> bool:
+        <span class="K">return</span> self.current_score() >= threshold
+
+    <span class="K">def</span> <span class="F">sight</span>(self):
+        <span class="S">"""Record a new sighting — boosts score, resets decay clock."""</span>
+        self.last_seen = datetime.now(timezone.utc)
+        self.sightings += <span class="N">1</span>
+
+<span class="C"># Usage:</span>
+ip_ioc = IOC(<span class="S">"185.220.101.34"</span>, IOCType.IP, base_score=<span class="N">80</span>)
+<span class="F">print</span>(ip_ioc.current_score())  <span class="C"># 80.0 (fresh)</span>
+<span class="C"># After 7 days with no sighting:</span>
+<span class="C"># score ≈ 40.0 (half decayed — half-life=7)</span>
+<span class="C"># After 14 days: ≈ 20.0</span>
+<span class="C"># After 21 days: ≈ 10.0 → retired</span></div>
+    </div>
+    <div class="card cn">
+      <div class="clabel">TLP Classification</div>
+      <div class="ctitle navy">TRAFFIC LIGHT PROTOCOL</div>
+      <div class="cbody" style="margin-bottom:12px">TLP governs information sharing. Using the wrong TLP exposes your organization and damages trust relationships.</div>
+      <table class="dtable">
+        <tr><th>TLP</th><th>SHARING SCOPE</th><th>WHEN TO USE</th></tr>
+        <tr>
+          <td><strong style="color:#cc0000">TLP:RED</strong></td>
+          <td>Named recipients only. No forwarding.</td>
+          <td>Highly sensitive, attribution info, victim names</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#cc6600">TLP:AMBER</strong></td>
+          <td>Within organization + named partners</td>
+          <td>Operational intel, active campaigns, detailed TTPs</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#009900">TLP:GREEN</strong></td>
+          <td>Community (ISAC, sector partners)</td>
+          <td>Generic IOCs, sanitized reports, awareness</td>
+        </tr>
+        <tr>
+          <td><strong>TLP:CLEAR</strong></td>
+          <td>Public — no restriction</td>
+          <td>Public advisories, awareness campaigns</td>
+        </tr>
+      </table>
+      <div class="cbody" style="margin-top:12px"><strong>TLP:AMBER+STRICT</strong> — added in TLP 2.0 — restricts sharing to the named organization only, not their partners. Critical for sensitive intelligence with PII or victim details.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ STIX / TAXII ═══════════════ -->
+<div class="module z1" id="mod-stix">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">02</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Structured Threat Information eXpression //</div>
+      <div class="sh-title">STIX 2.1 & <span class="hl">TAXII</span></div>
+      <div class="sh-desc">STIX is the industry-standard JSON schema for representing threat intelligence objects. TAXII is the transport protocol for sharing them. Together they enable machine-readable intel exchange at scale.</div>
+    </div>
+  </div>
+
+  <!-- STIX objects reference -->
+  <div class="card cb2" style="margin-bottom:18px">
+    <div class="clabel">STIX 2.1 Object Model</div>
+    <div class="ctitle burg">STIX DOMAIN OBJECTS (SDOs)</div>
+    <div class="cbody" style="margin-bottom:12px">STIX 2.1 defines 18 SDO types. These are the building blocks of a structured intel product. Each has a required <code>id</code>, <code>type</code>, <code>created</code>, and <code>modified</code> field.</div>
+    <table class="dtable">
+      <tr><th>SDO TYPE</th><th>REPRESENTS</th><th>KEY FIELDS</th></tr>
+      <tr><td><strong>indicator</strong></td><td>Pattern to detect malicious activity (IOC)</td><td>pattern (STIX pattern), valid_from, kill_chain_phases</td></tr>
+      <tr><td><strong>malware</strong></td><td>Malware family or instance</td><td>name, malware_types, capabilities, is_family</td></tr>
+      <tr><td><strong>threat-actor</strong></td><td>Adversary group or individual</td><td>name, aliases, sophistication, goals, resource_level</td></tr>
+      <tr><td><strong>attack-pattern</strong></td><td>A TTP (maps to ATT&CK technique)</td><td>name, external_references (ATT&CK ID)</td></tr>
+      <tr><td><strong>campaign</strong></td><td>A coordinated set of malicious activities</td><td>name, first_seen, last_seen, objective</td></tr>
+      <tr><td><strong>tool</strong></td><td>Legitimate software used maliciously (LOLBins)</td><td>name, tool_types, kill_chain_phases</td></tr>
+      <tr><td><strong>vulnerability</strong></td><td>CVE or software weakness</td><td>name, external_references (CVE), description</td></tr>
+      <tr><td><strong>identity</strong></td><td>Organization, person, or system</td><td>name, identity_class, sectors</td></tr>
+      <tr><td><strong>course-of-action</strong></td><td>Defensive action or mitigation</td><td>name, description, action_type</td></tr>
+      <tr><td><strong>intrusion-set</strong></td><td>Clustered activity from same actor (APT group)</td><td>name, aliases, first_seen, goals</td></tr>
+    </table>
+  </div>
+
+  <!-- STIX in practice -->
+  <div class="g2" style="margin-bottom:18px">
+    <div class="card cb2">
+      <div class="clabel">STIX 2.1 — Writing Objects</div>
+      <div class="ctitle burg">STIX BUNDLE — COMPLETE EXAMPLE</div>
+      <div class="cbody" style="margin-bottom:10px">A STIX bundle wrapping a threat actor, malware, campaign, and indicators — all linked via STIX Relationship Objects (SROs).</div>
+      <div class="cb" style="--cb-accent:var(--burg)">
+<span class="tag">JSON — STIX 2.1</span>
+{
+  <span class="K">"type"</span>: <span class="S">"bundle"</span>,
+  <span class="K">"id"</span>: <span class="S">"bundle--a1b2c3d4-..."</span>,
+  <span class="K">"objects"</span>: [
+
+    <span class="C">// Threat Actor SDO</span>
+    {
+      <span class="K">"type"</span>: <span class="S">"threat-actor"</span>,
+      <span class="K">"id"</span>: <span class="S">"threat-actor--e1f2g3h4-..."</span>,
+      <span class="K">"spec_version"</span>: <span class="S">"2.1"</span>,
+      <span class="K">"created"</span>: <span class="S">"2025-01-15T00:00:00.000Z"</span>,
+      <span class="K">"modified"</span>: <span class="S">"2025-01-15T00:00:00.000Z"</span>,
+      <span class="K">"name"</span>: <span class="S">"APT-X"</span>,
+      <span class="K">"aliases"</span>: [<span class="S">"GhostPanda"</span>, <span class="S">"ShadowOrchid"</span>],
+      <span class="K">"sophistication"</span>: <span class="S">"advanced"</span>,
+      <span class="K">"resource_level"</span>: <span class="S">"government"</span>,
+      <span class="K">"primary_motivation"</span>: <span class="S">"espionage"</span>
+    },
+
+    <span class="C">// Indicator SDO (IOC with STIX pattern)</span>
+    {
+      <span class="K">"type"</span>: <span class="S">"indicator"</span>,
+      <span class="K">"id"</span>: <span class="S">"indicator--i1j2k3l4-..."</span>,
+      <span class="K">"spec_version"</span>: <span class="S">"2.1"</span>,
+      <span class="K">"created"</span>: <span class="S">"2025-01-15T00:00:00.000Z"</span>,
+      <span class="K">"modified"</span>: <span class="S">"2025-01-15T00:00:00.000Z"</span>,
+      <span class="K">"name"</span>: <span class="S">"GHOSTRAT C2 Domain"</span>,
+      <span class="K">"indicator_types"</span>: [<span class="S">"malicious-activity"</span>],
+      <span class="K">"pattern"</span>: <span class="S">"[domain-name:value = 'ghostsvc.evil.com']"</span>,
+      <span class="K">"pattern_type"</span>: <span class="S">"stix"</span>,
+      <span class="K">"valid_from"</span>: <span class="S">"2025-01-10T00:00:00.000Z"</span>,
+      <span class="K">"valid_until"</span>: <span class="S">"2025-02-10T00:00:00.000Z"</span>,
+      <span class="K">"confidence"</span>: <span class="N">85</span>,
+      <span class="K">"labels"</span>: [<span class="S">"c2"</span>, <span class="S">"malware-distribution"</span>]
+    },
+
+    <span class="C">// Relationship SRO: actor USES malware</span>
+    {
+      <span class="K">"type"</span>: <span class="S">"relationship"</span>,
+      <span class="K">"id"</span>: <span class="S">"relationship--r1s2t3u4-..."</span>,
+      <span class="K">"relationship_type"</span>: <span class="S">"uses"</span>,
+      <span class="K">"source_ref"</span>: <span class="S">"threat-actor--e1f2g3h4-..."</span>,
+      <span class="K">"target_ref"</span>: <span class="S">"malware--m1n2o3p4-..."</span>
+    },
+
+    <span class="C">// Relationship SRO: indicator INDICATES malware</span>
+    {
+      <span class="K">"type"</span>: <span class="S">"relationship"</span>,
+      <span class="K">"relationship_type"</span>: <span class="S">"indicates"</span>,
+      <span class="K">"source_ref"</span>: <span class="S">"indicator--i1j2k3l4-..."</span>,
+      <span class="K">"target_ref"</span>: <span class="S">"malware--m1n2o3p4-..."</span>
+    }
+  ]
+}</div>
+    </div>
+
+    <div class="card cn">
+      <div class="clabel">STIX Patterns — The Query Language</div>
+      <div class="ctitle navy">STIX PATTERN SYNTAX</div>
+      <div class="cbody" style="margin-bottom:10px">STIX patterns are used in Indicator objects to define what the indicator detects. They can be converted to Sigma, YARA, or SIEM query language.</div>
+      <div class="cb" style="--cb-accent:var(--navy)">
+<span class="tag">STIX PATTERNS</span>
+<span class="C"># IPv4 address</span>
+[<span class="K">ipv4-addr</span>:<span class="V">value</span> = <span class="S">'185.220.101.34'</span>]
+
+<span class="C"># Domain name</span>
+[<span class="K">domain-name</span>:<span class="V">value</span> = <span class="S">'evil-c2.net'</span>]
+
+<span class="C"># File hash</span>
+[<span class="K">file</span>:<span class="V">hashes</span>.<span class="S">'SHA-256'</span> = <span class="S">'abc123...'</span>]
+
+<span class="C"># Email sender</span>
+[<span class="K">email-message</span>:<span class="V">sender_ref</span>.<span class="V">value</span> = <span class="S">'ceo@fake.com'</span>]
+
+<span class="C"># URL</span>
+[<span class="K">url</span>:<span class="V">value</span> = <span class="S">'http://evil.com/stage2.bin'</span>]
+
+<span class="C"># Registry key (Windows persistence)</span>
+[<span class="K">windows-registry-key</span>:<span class="V">key</span> = <span class="S">'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'</span>
+  <span class="K">AND</span> <span class="K">windows-registry-key</span>:<span class="V">values</span>[*].<span class="V">data</span> LIKE <span class="S">'%AppData%'</span>]
+
+<span class="C"># Network traffic (process making C2 connection)</span>
+[<span class="K">network-traffic</span>:<span class="V">dst_port</span> = <span class="N">443</span>
+  <span class="K">AND</span> <span class="K">network-traffic</span>:<span class="V">dst_ref</span>.<span class="V">type</span> = <span class="S">'ipv4-addr'</span>
+  <span class="K">AND</span> <span class="K">network-traffic</span>:<span class="V">dst_ref</span>.<span class="V">value</span> = <span class="S">'185.220.101.34'</span>]
+
+<span class="C"># Compound: file AND network (dropped binary + C2)</span>
+[<span class="K">file</span>:<span class="V">hashes</span>.<span class="S">'MD5'</span> = <span class="S">'d41d8cd9...'</span>]
+<span class="K">AND</span>
+[<span class="K">domain-name</span>:<span class="V">value</span> = <span class="S">'evil-c2.net'</span>]
+<span class="K">WITHIN</span> <span class="N">300</span> SECONDS</div>
+
+      <div class="cbody" style="margin-top:10px"><strong>Python STIX2 library:</strong></div>
+      <div class="cb" style="--cb-accent:var(--navy)">
+<span class="tag">PYTHON</span>
+<span class="K">from</span> stix2 <span class="K">import</span> Indicator, ThreatActor, Relationship, Bundle
+
+actor = ThreatActor(
+    name=<span class="S">"APT-X"</span>,
+    aliases=[<span class="S">"GhostPanda"</span>],
+    sophistication=<span class="S">"advanced"</span>
+)
+ioc = Indicator(
+    name=<span class="S">"GHOSTRAT C2"</span>,
+    pattern=<span class="S">"[domain-name:value = 'evil.com']"</span>,
+    pattern_type=<span class="S">"stix"</span>,
+    valid_from=<span class="S">"2025-01-15T00:00:00Z"</span>
+)
+bundle = Bundle(objects=[actor, ioc])
+<span class="F">print</span>(bundle.serialize(pretty=<span class="G">True</span>))</div>
+    </div>
+  </div>
+
+  <!-- TAXII -->
+  <div class="card cg">
+    <div class="clabel">Transport Protocol</div>
+    <div class="ctitle gold">TAXII 2.1 — INTEL SHARING INFRASTRUCTURE</div>
+    <div class="cbody" style="margin-bottom:12px">TAXII 2.1 is a REST API standard for sharing STIX bundles. Organizations run TAXII servers to receive and distribute threat intelligence in a standardized, machine-readable format.</div>
+    <div class="g2">
+      <div class="cb" style="--cb-accent:var(--gold)">
+<span class="tag">HTTP / REST</span>
+<span class="C"># TAXII 2.1 API Structure</span>
+<span class="C"># Base URL: https://taxii.your-org.com/taxii/</span>
+
+<span class="C"># 1. Discovery — list available API roots</span>
+<span class="F">GET</span> /taxii/
+<span class="C"># Returns: API root URLs, contact, description</span>
+
+<span class="C"># 2. List collections available</span>
+<span class="F">GET</span> /api/v2/collections/
+<span class="C"># Returns: collection IDs, names, can_read, can_write</span>
+
+<span class="C"># 3. Get objects from a collection</span>
+<span class="F">GET</span> /api/v2/collections/{id}/objects/
+<span class="F">GET</span> /api/v2/collections/{id}/objects/?
+      added_after=2025-01-01T00:00:00Z&
+      type=indicator&
+      limit=100
+<span class="C"># Returns: STIX bundle with matching objects</span>
+
+<span class="C"># 4. Add objects to a collection</span>
+<span class="F">POST</span> /api/v2/collections/{id}/objects/
+Content-Type: application/taxii+json;version=2.1
+{bundle of STIX objects}</div>
+      <div class="cb" style="--cb-accent:var(--gold)">
+<span class="tag">PYTHON — TAXII CLIENT</span>
+<span class="K">from</span> taxii2client.v21 <span class="K">import</span> Server, Collection
+
+<span class="C"># Connect to a TAXII server (e.g., ISAC feed)</span>
+server = Server(
+    <span class="S">"https://taxii.isac.org/taxii/"</span>,
+    user=<span class="S">"your_org"</span>,
+    password=<span class="S">"your_token"</span>
+)
+
+<span class="C"># List available collections</span>
+<span class="K">for</span> root <span class="K">in</span> server.api_roots:
+    <span class="K">for</span> coll <span class="K">in</span> root.collections:
+        <span class="F">print</span>(f<span class="S">"{coll.id}: {coll.title}"</span>)
+
+<span class="C"># Fetch recent indicators</span>
+coll = Collection(
+    <span class="S">"https://taxii.isac.org/api/v2/collections/indicators/"</span>,
+    user=<span class="S">"org"</span>, password=<span class="S">"token"</span>
+)
+bundle = coll.get_objects(
+    added_after=<span class="S">"2025-01-01T00:00:00Z"</span>,
+    type=[<span class="S">"indicator"</span>, <span class="S">"malware"</span>]
+)
+
+<span class="K">for</span> obj <span class="K">in</span> bundle.get(<span class="S">"objects"</span>, []):
+    <span class="K">if</span> obj[<span class="S">"type"</span>] == <span class="S">"indicator"</span>:
+        <span class="F">print</span>(obj[<span class="S">"pattern"</span>])  <span class="C"># push to SIEM</span></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ TTP-BASED INTEL ═══════════════ -->
+<div class="module z1" id="mod-ttp">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">03</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Beyond IOCs //</div>
+      <div class="sh-title">TTP-Based <span class="hl">Intelligence</span></div>
+      <div class="sh-desc">IOC-based intel is reactive — it detects known threats. TTP-based intel is proactive — it detects adversary behavior patterns that persist across tool changes, infrastructure rotations, and campaign evolutions.</div>
+    </div>
+  </div>
+
+  <div class="dossier-quote">
+    <p>"Indicators of compromise are breadcrumbs left behind. Techniques are the footprints of how the adversary moves. Block the breadcrumbs and they leave new ones. Change the terrain and they must change how they walk."</p>
+    <cite>— Detection Engineering Principle</cite>
+  </div>
+
+  <!-- ATT&CK as intel language -->
+  <div class="card cb2" style="margin-bottom:18px">
+    <div class="clabel">MITRE ATT&CK as Intelligence Language</div>
+    <div class="ctitle burg">CONVERTING INTEL TO ATT&CK — ANALYST WORKFLOW</div>
+    <div class="cbody" style="margin-bottom:12px">Every piece of threat intelligence should be mapped to ATT&CK technique IDs. This creates a common vocabulary across vendors, teams, and organizations — enabling automatic correlation.</div>
+    <div class="g2">
+      <div class="cb" style="--cb-accent:var(--burg)">
+<span class="tag">WORKFLOW</span>
+<span class="C">##############################################################</span>
+<span class="C"># INTEL REPORT → ATT&CK MAPPING PROCESS</span>
+<span class="C">##############################################################</span>
+
+<span class="C"># Step 1: Read incident/malware report</span>
+<span class="C"># Example raw intel:</span>
+<span class="H">"The actor sent spearphishing emails with</span>
+<span class="H"> malicious .docx attachments containing macros.</span>
+<span class="H"> Upon execution, PowerShell downloaded a payload</span>
+<span class="H"> and established persistence via scheduled task."</span>
+
+<span class="C"># Step 2: Extract behaviors → map to techniques</span>
+<span class="Y">Behavior:</span>       Spearphishing with attachment
+<span class="G">ATT&CK:</span>         T1566.001
+
+<span class="Y">Behavior:</span>       Malicious macro execution
+<span class="G">ATT&CK:</span>         T1204.002 (User Execution: Malicious File)
+
+<span class="Y">Behavior:</span>       PowerShell download
+<span class="G">ATT&CK:</span>         T1059.001 + T1105 (Ingress Tool Transfer)
+
+<span class="Y">Behavior:</span>       Scheduled task persistence
+<span class="G">ATT&CK:</span>         T1053.005
+
+<span class="C"># Step 3: Build ATT&CK Navigator layer</span>
+<span class="C"># → Visualize which techniques this actor uses</span>
+<span class="C"># → Compare against your detection coverage</span>
+<span class="C"># → Gaps = new detection rules needed</span>
+
+<span class="C"># Step 4: Write Sigma rules tagged with ATT&CK IDs</span>
+<span class="C"># (covered in Module 04)</span></div>
+      <div class="cb" style="--cb-accent:var(--burg)">
+<span class="tag">PYTHON — ATT&CK API</span>
+<span class="K">from</span> attackcti <span class="K">import</span> attack_client
+
+<span class="C"># Query ATT&CK for a specific technique</span>
+client = attack_client()
+
+<span class="C"># Get technique by ID</span>
+tech = client.get_technique_by_name(<span class="S">"Scheduled Task/Job"</span>)
+<span class="F">print</span>(tech[<span class="N">0</span>][<span class="S">"external_references"</span>])  <span class="C"># T1053</span>
+
+<span class="C"># Get all techniques used by APT29</span>
+apt29 = client.get_group_by_alias(<span class="S">"APT29"</span>)
+techniques = client.get_techniques_used_by_group(apt29[<span class="N">0</span>])
+
+<span class="K">for</span> tech <span class="K">in</span> techniques:
+    tid = tech.get(<span class="S">"technique_id"</span>, <span class="S">""</span>)
+    name = tech.get(<span class="S">"technique"</span>, <span class="S">""</span>)
+    <span class="F">print</span>(f<span class="S">"{tid}: {name}"</span>)
+
+<span class="C"># Build ATT&CK Navigator layer programmatically</span>
+layer = {
+    <span class="S">"name"</span>: <span class="S">"APT29 Coverage"</span>,
+    <span class="S">"domain"</span>: <span class="S">"enterprise-attack"</span>,
+    <span class="S">"techniques"</span>: [
+        {<span class="S">"techniqueID"</span>: tid, <span class="S">"score"</span>: <span class="N">100</span>,
+         <span class="S">"color"</span>: <span class="S">"#cc0000"</span>}
+        <span class="K">for</span> tid <span class="K">in</span> [<span class="S">"T1053.005"</span>,<span class="S">"T1059.001"</span>,<span class="S">"T1566.001"</span>]
+    ]
+}
+<span class="C"># Export and load at attack.mitre.org/navigator/</span></div>
+    </div>
+  </div>
+
+  <!-- TTP vs IOC comparison -->
+  <div class="g2" style="margin-bottom:18px">
+    <div class="card cb2">
+      <div class="clabel">Comparative Analysis</div>
+      <div class="ctitle burg">IOC VS TTP DETECTION — A REAL EXAMPLE</div>
+      <div class="cbody" style="margin-bottom:10px">APT29 (Cozy Bear) used multiple different malware families and C2 infrastructures across campaigns. IOC-based detection missed re-tooled attacks; TTP-based detection caught them all.</div>
+      <div class="cb" style="--cb-accent:var(--burg)">
+<span class="C">APT29 SolarWinds Campaign (2020):</span>
+<span class="Y">IOC-based detection:</span>
+  - Hash of SUNBURST: caught if hash matched
+  - C2 domain (avsvmcloud.com): caught if in blocklist
+  → Missed: Custom Cobalt Strike loaders (different hash)
+  → Missed: New infrastructure (different domains)
+  → Overall: Most orgs didn't detect until SolarWinds disclosed
+
+<span class="G">TTP-based detection:</span>
+  T1195.002 — Supply chain compromise via trusted update
+  T1027.005 — Indicator removal (timestamp manipulation)
+  T1078.002 — Valid domain accounts (no brute force — stealthy)
+  T1207     — DCShadow (novel persistence technique)
+  T1550.002 — Pass-the-ticket with Kerberos Golden Tickets
+  → These behaviors persisted across ALL APT29 campaigns
+  → Behavioral rules detected the attack independently of IOCs
+
+<span class="G">Lesson:</span> TTP rules are actor-persistent; IOC rules are tool-specific</div>
+    </div>
+    <div class="card cn">
+      <div class="clabel">Coverage Analysis</div>
+      <div class="ctitle navy">ATT&CK COVERAGE GAP ANALYSIS</div>
+      <div class="cbody" style="margin-bottom:10px">Map your detection rules to ATT&CK and compare against the techniques your top threat actors use — the gaps are your priority detection backlog.</div>
+      <div class="cb" style="--cb-accent:var(--navy)">
+<span class="tag">PYTHON</span>
+<span class="K">import</span> json
+
+<span class="C"># Load: your current Sigma rules (tagged with ATT&CK)</span>
+<span class="C"># Load: techniques used by your priority threat actors</span>
+
+your_coverage = {<span class="S">"T1059.001"</span>, <span class="S">"T1053.005"</span>, <span class="S">"T1055"</span>,
+                 <span class="S">"T1003.001"</span>, <span class="S">"T1071.001"</span>}
+
+actor_techniques = {  <span class="C"># from ATT&CK / threat reports</span>
+    <span class="S">"APT29"</span>: {<span class="S">"T1195.002"</span>, <span class="S">"T1207"</span>, <span class="S">"T1550.002"</span>,
+              <span class="S">"T1059.001"</span>, <span class="S">"T1078.002"</span>, <span class="S">"T1027.005"</span>},
+    <span class="S">"FIN7"</span>:  {<span class="S">"T1566.001"</span>, <span class="S">"T1059.001"</span>, <span class="S">"T1056.001"</span>,
+              <span class="S">"T1071.001"</span>, <span class="S">"T1003.001"</span>, <span class="S">"T1486"</span>}
+}
+
+<span class="K">for</span> actor, techniques <span class="K">in</span> actor_techniques.items():
+    gaps = techniques - your_coverage
+    covered = techniques & your_coverage
+    pct = round(<span class="F">len</span>(covered) / <span class="F">len</span>(techniques) * <span class="N">100</span>)
+    <span class="F">print</span>(f<span class="S">"\n{actor}: {pct}% covered"</span>)
+    <span class="F">print</span>(f<span class="S">"  Covered: {covered}"</span>)
+    <span class="F">print</span>(f<span class="S">"  GAPS: {gaps}"</span>)  <span class="C"># detection backlog</span>
+<span class="C"># APT29: 17% covered (1/6 techniques)</span>
+<span class="C"># GAPS: T1195.002, T1207, T1550.002, T1078.002, T1027.005</span>
+<span class="C"># → Priority: write detection rules for these 5</span></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ ACTOR PROFILING ═══════════════ -->
+<div class="module z1" id="mod-actors">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">04</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Adversary Analysis //</div>
+      <div class="sh-title">Threat Actor <span class="hl">Profiling</span></div>
+      <div class="sh-desc">Threat actor profiling moves beyond "who attacked us" to "what do they want, how do they operate, and what will they do next." Systematic profiling enables predictive defense rather than reactive response.</div>
+    </div>
+  </div>
+
+  <!-- Actor profile template -->
+  <div class="card cb2" style="margin-bottom:18px">
+    <div class="clabel">Intelligence Product Template</div>
+    <div class="ctitle burg">THREAT ACTOR PROFILE — STRUCTURAL TEMPLATE</div>
+    <div class="cb" style="--cb-accent:var(--burg)">
+<span class="tag">CTI REPORT TEMPLATE</span>
+<span class="C">═══════════════════════════════════════════════════════════</span>
+<span class="Y">THREAT ACTOR PROFILE</span>                          TLP: AMBER
+<span class="C">═══════════════════════════════════════════════════════════</span>
+
+<span class="Y">IDENTITY</span>
+  Common Name:      APT-X / GhostPanda / ShadowOrchid
+  Suspected Origin: [Nation-state / e-crime / hacktivist]
+  Active Since:     2018 (first confirmed campaign)
+  ATT&CK Group ID:  G0XXX
+
+<span class="Y">MOTIVATION & INTENT</span>
+  Primary:   Intellectual property theft (semiconductor sector)
+  Secondary: Pre-positioning in critical infrastructure
+  Evidence:  Targets align with national strategic goals
+
+<span class="Y">CAPABILITY ASSESSMENT</span>
+  Sophistication:  Advanced (custom tooling, zero-days)
+  Custom Malware:  GHOSTRAT, SHADOWVAULT, IRONPULSE
+  LOLBin Reliance: Moderate (PowerShell, WMI, certutil)
+  OPSEC:           High (staged infrastructure, clean systems)
+
+<span class="Y">TARGETING</span>
+  Sectors:   Defense, Semiconductors, Aerospace, Telecoms
+  Geography: EU, US, Taiwan, South Korea (primary)
+  TTPs:      Spearphishing → supply chain → VPN exploits
+
+<span class="Y">INFRASTRUCTURE</span>
+  C2 Style:  Multi-hop via compromised intermediaries
+  Infra TTL: Rotates within 14 days of detection
+  Registrars: Namecheap, Njalla (privacy-focused)
+  Hosting:   AS202425 (bulletproof), AS197695
+
+<span class="Y">CAMPAIGN HISTORY</span>
+  2019-Q3:  Operation JADE FALCON (EU defense sector)
+  2021-Q1:  Operation BRONZE NEEDLE (semiconductor supply chain)
+  2023-Q4:  Ongoing (telecom targeting, Asia-Pacific)
+
+<span class="Y">DETECTION OPPORTUNITIES</span>
+  Weakness 1: Custom GHOSTRAT has unique network signature
+  Weakness 2: Reuses C2 infrastructure across campaigns
+  Weakness 3: Consistent tool preference allows behavioral rules
+
+<span class="Y">MITRE ATT&CK HEATMAP</span>
+  [See attached Navigator layer: aptx_coverage.json]</div>
+  </div>
+
+  <!-- Named threat actors reference -->
+  <div class="card cn" style="margin-bottom:18px">
+    <div class="clabel">Public Attribution Reference</div>
+    <div class="ctitle navy">SELECTED DOCUMENTED THREAT ACTOR GROUPS</div>
+    <div class="cbody" style="margin-bottom:12px">These groups are publicly attributed by government agencies and security vendors. Understanding their documented TTPs enables proactive defensive posture.</div>
+    <table class="dtable">
+      <tr><th>ACTOR</th><th>COMMON ALIASES</th><th>ATTRIBUTION</th><th>KNOWN FOCUS</th><th>SIGNATURE TTPs</th></tr>
+      <tr>
+        <td><strong>APT29</strong></td>
+        <td>Cozy Bear, Midnight Blizzard, NOBELIUM</td>
+        <td>Russian SVR (CISA/NSA/FBI advisory)</td>
+        <td>Government, defense, think tanks</td>
+        <td class="tc-r">T1195.002, T1207, T1550.002</td>
+      </tr>
+      <tr>
+        <td><strong>APT41</strong></td>
+        <td>Double Dragon, Brass Typhoon, BARIUM</td>
+        <td>Chinese MSS-linked (DOJ indictment)</td>
+        <td>Healthcare, gaming, telecoms</td>
+        <td class="tc-r">T1190, T1059.001, T1136</td>
+      </tr>
+      <tr>
+        <td><strong>Sandworm</strong></td>
+        <td>Voodoo Bear, Seashell Blizzard</td>
+        <td>Russian GRU Unit 74455 (EU Council)</td>
+        <td>Critical infrastructure, Ukraine</td>
+        <td class="tc-r">T1486, T1561.002, T1059.003</td>
+      </tr>
+      <tr>
+        <td><strong>Lazarus Group</strong></td>
+        <td>Hidden Cobra, Zinc, Diamond Sleet</td>
+        <td>North Korean RGB (Treasury OFAC)</td>
+        <td>Financial, crypto, defense</td>
+        <td class="tc-r">T1566.002, T1486, T1584</td>
+      </tr>
+      <tr>
+        <td><strong>FIN7</strong></td>
+        <td>Carbanak, Anunak, Carbon Spider</td>
+        <td>E-crime group (DOJ indictments)</td>
+        <td>Retail, hospitality, financial</td>
+        <td class="tc-r">T1566.001, T1056.001, T1071.001</td>
+      </tr>
+    </table>
+    <div class="alert a-info" style="margin-top:12px">
+      <strong>Attribution Caution:</strong> Public attribution by governments and vendors reflects available evidence at time of publication. Attribution in the intelligence community is expressed with confidence levels (High/Medium/Low), not certainty. Never treat attributed TTPs as exhaustive — actors continuously evolve.
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ FEEDS & PLATFORMS ═══════════════ -->
+<div class="module z1" id="mod-feeds">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">05</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Sources & Platforms //</div>
+      <div class="sh-title">Intel Feeds & <span class="hl">Platforms</span></div>
+      <div class="sh-desc">The threat intelligence ecosystem spans free community feeds, commercial platforms, ISACs, and government advisories. Building a mature intel program requires understanding each source's strengths, limitations, and appropriate use.</div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:18px">
+    <div class="card cb2">
+      <div class="clabel">Free & Open Sources</div>
+      <div class="ctitle burg">OPEN SOURCE INTEL FEEDS</div>
+      <table class="dtable">
+        <tr><th>SOURCE</th><th>CONTENT</th><th>FORMAT</th><th>RELIABILITY</th></tr>
+        <tr><td><strong>abuse.ch (MalwareBazaar, URLhaus, Feodo)</strong></td><td>Malware hashes, C2 IPs, banking trojan infra</td><td>CSV, JSON, TAXII</td><td class="tc-g">HIGH</td></tr>
+        <tr><td><strong>AlienVault OTX</strong></td><td>Community-submitted pulses (IOCs, YARA, Sigma)</td><td>STIX, CSV, JSON</td><td class="tc-y">MEDIUM</td></tr>
+        <tr><td><strong>CISA Known Exploited Vulnerabilities</strong></td><td>CVEs actively exploited in the wild</td><td>JSON, CSV</td><td class="tc-g">HIGH</td></tr>
+        <tr><td><strong>Emerging Threats (ET) Rules</strong></td><td>Snort/Suricata network detection rules</td><td>Rules</td><td class="tc-g">HIGH</td></tr>
+        <tr><td><strong>MISP Threat Intelligence (warroom)</strong></td><td>Community MISP events, IOCs, campaigns</td><td>STIX, MISP JSON</td><td class="tc-y">VARIABLE</td></tr>
+        <tr><td><strong>VirusTotal Intelligence</strong></td><td>File hashes, network IOCs, YARA hunting</td><td>JSON API</td><td class="tc-g">HIGH</td></tr>
+      </table>
+    </div>
+    <div class="card cn">
+      <div class="clabel">Platforms</div>
+      <div class="ctitle navy">INTEL PLATFORM COMPARISON</div>
+      <table class="dtable">
+        <tr><th>PLATFORM</th><th>STRENGTHS</th><th>BEST FOR</th></tr>
+        <tr><td><strong>MISP</strong></td><td>Free, self-hosted, rich community, TAXII support</td><td>Community sharing, ISAC participation</td></tr>
+        <tr><td><strong>OpenCTI</strong></td><td>STIX-native, graph visualization, connector ecosystem</td><td>Enterprise intel management, ATT&CK mapping</td></tr>
+        <tr><td><strong>ThreatConnect</strong></td><td>Commercial, workflow automation, SOAR integration</td><td>Large SOC teams, automated enrichment</td></tr>
+        <tr><td><strong>Anomali ThreatStream</strong></td><td>Commercial, large feed library, SIEM integration</td><td>IOC management at scale</td></tr>
+        <tr><td><strong>Recorded Future</strong></td><td>Commercial, NLP analysis of dark web/surface web</td><td>Strategic intel, early warning</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- MISP integration -->
+  <div class="card cg">
+    <div class="clabel">Open Source Platform Integration</div>
+    <div class="ctitle gold">MISP API — AUTOMATED IOC ENRICHMENT PIPELINE</div>
+    <div class="cbody" style="margin-bottom:10px">MISP (Malware Information Sharing Platform) is the most widely deployed community threat intel platform. Integrating it with your SIEM creates an automated enrichment and alerting pipeline.</div>
+    <div class="g2">
+      <div class="cb" style="--cb-accent:var(--gold)">
+<span class="tag">PYTHON — MISP API</span>
+<span class="K">from</span> pymisp <span class="K">import</span> PyMISP, MISPEvent, MISPAttribute
+
+misp = PyMISP(
+    <span class="S">"https://your-misp-instance.org"</span>,
+    api_key=<span class="S">"YOUR_API_KEY"</span>,
+    ssl=<span class="G">True</span>
+)
+
+<span class="C"># Search for events related to an IOC</span>
+results = misp.search(
+    value=<span class="S">"185.220.101.34"</span>,
+    type_attribute=<span class="S">"ip-dst"</span>,
+    to_ids=<span class="G">True</span>   <span class="C"># only confirmed malicious</span>
+)
+
+<span class="K">for</span> event <span class="K">in</span> results:
+    <span class="F">print</span>(f<span class="S">"Event: {event['Event']['info']}"</span>)
+    <span class="F">print</span>(f<span class="S">"  Tags: {[t['name'] for t in event['Event']['Tag']]}"</span>)
+    <span class="F">print</span>(f<span class="S">"  TLP: {event['Event'].get('distribution_name')}"</span>)
+
+<span class="C"># Create a new event from your own investigation</span>
+event = MISPEvent()
+event.info = <span class="S">"GHOSTRAT Campaign — 2025-01"</span>
+event.add_tag(<span class="S">"tlp:amber"</span>)
+event.add_tag(<span class="S">"misp-galaxy:threat-actor=\"APT-X\""</span>)
+
+<span class="C"># Add IOC attributes</span>
+event.add_attribute(<span class="S">"ip-dst"</span>, <span class="S">"185.220.101.34"</span>,
+                    comment=<span class="S">"GHOSTRAT C2"</span>, to_ids=<span class="G">True</span>)
+event.add_attribute(<span class="S">"sha256"</span>, <span class="S">"abc123..."</span>,
+                    comment=<span class="S">"GHOSTRAT loader"</span>, to_ids=<span class="G">True</span>)
+event.add_attribute(<span class="S">"domain"</span>, <span class="S">"ghostsvc.evil.com"</span>)
+
+misp.add_event(event)
+<span class="F">print</span>(<span class="S">"Published to MISP community"</span>)</div>
+      <div class="cb" style="--cb-accent:var(--gold)">
+<span class="tag">PIPELINE — SIEM ENRICHMENT</span>
+<span class="C"># Automated pipeline: SIEM alert → MISP lookup → enrich</span>
+<span class="K">from</span> pymisp <span class="K">import</span> PyMISP
+<span class="K">import</span> json
+
+misp = PyMISP(<span class="S">"https://misp.org"</span>, <span class="S">"KEY"</span>)
+
+<span class="K">def</span> <span class="F">enrich_alert</span>(alert: dict) -> dict:
+    <span class="S">"""Enrich a SIEM alert with MISP context."""</span>
+    enriched = alert.copy()
+    iocs_to_check = []
+
+    <span class="C"># Extract IOCs from alert</span>
+    <span class="K">if</span> <span class="S">"src_ip"</span> <span class="K">in</span> alert:
+        iocs_to_check.append((<span class="S">"ip-src"</span>, alert[<span class="S">"src_ip"</span>]))
+    <span class="K">if</span> <span class="S">"domain"</span> <span class="K">in</span> alert:
+        iocs_to_check.append((<span class="S">"domain"</span>, alert[<span class="S">"domain"</span>]))
+    <span class="K">if</span> <span class="S">"file_hash"</span> <span class="K">in</span> alert:
+        iocs_to_check.append((<span class="S">"sha256"</span>, alert[<span class="S">"file_hash"</span>]))
+
+    hits = []
+    <span class="K">for</span> attr_type, value <span class="K">in</span> iocs_to_check:
+        results = misp.search(value=value, type_attribute=attr_type)
+        <span class="K">if</span> results:
+            hits.append({
+                <span class="S">"ioc"</span>: value,
+                <span class="S">"type"</span>: attr_type,
+                <span class="S">"events"</span>: [e[<span class="S">"Event"</span>][<span class="S">"info"</span>] <span class="K">for</span> e <span class="K">in</span> results],
+                <span class="S">"tags"</span>: [t[<span class="S">"name"</span>] <span class="K">for</span> e <span class="K">in</span> results
+                          <span class="K">for</span> t <span class="K">in</span> e[<span class="S">"Event"</span>].get(<span class="S">"Tag"</span>, [])]
+            })
+
+    enriched[<span class="S">"misp_hits"</span>] = hits
+    enriched[<span class="S">"misp_verdict"</span>] = <span class="S">"MALICIOUS"</span> <span class="K">if</span> hits <span class="K">else</span> <span class="S">"UNKNOWN"</span>
+    <span class="K">return</span> enriched</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ INTEL FUSION ═══════════════ -->
+<div class="module z1" id="mod-fusion">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">06</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Operational Intelligence //</div>
+      <div class="sh-title">Intelligence <span class="hl">Fusion</span></div>
+      <div class="sh-desc">Intelligence fusion is the process of combining multiple intelligence sources — endpoint telemetry, network data, external feeds, dark web monitoring — into a coherent operational picture that drives real-time defensive decisions.</div>
+    </div>
+  </div>
+
+  <!-- Fusion center concept -->
+  <div class="card cb2" style="margin-bottom:18px">
+    <div class="clabel">Architecture</div>
+    <div class="ctitle burg">INTELLIGENCE FUSION ARCHITECTURE</div>
+    <div class="cbody" style="margin-bottom:12px">A mature fusion capability correlates indicators across five data planes simultaneously, reducing dwell time from months to hours.</div>
+    <div class="cb" style="--cb-accent:var(--burg)">
+<span class="C">╔══════════════════════════════════════════════════════════════════╗</span>
+<span class="C">║              INTELLIGENCE FUSION CENTER                          ║</span>
+<span class="C">╠══════════════════════════════════════════════════════════════════╣</span>
+<span class="C">║                                                                  ║</span>
+<span class="C">║  INTERNAL SOURCES          EXTERNAL SOURCES                      ║</span>
+<span class="C">║  ─────────────────         ─────────────────                     ║</span>
+<span class="C">║  EDR Telemetry      ──┐    ISAC Intel Feed ──┐                   ║</span>
+<span class="C">║  SIEM Alerts        ──┤    Gov Advisories  ──┤                   ║</span>
+<span class="C">║  NetFlow / PCAP     ──┤    Commercial TI   ──┤                   ║</span>
+<span class="C">║  DNS / Proxy Logs   ──┤    OSINT / Forums  ──┤                   ║</span>
+<span class="C">║  Vulnerability Scan ──┘    Dark Web Intel  ──┘                   ║</span>
+<span class="C">║             ↓                         ↓                          ║</span>
+<span class="Y">║          ┌─────────────────────────────────────┐                 ║</span>
+<span class="Y">║          │      CORRELATION ENGINE              │                 ║</span>
+<span class="Y">║          │  Link IOCs → Campaigns → Actors      │                 ║</span>
+<span class="Y">║          │  Score confidence → Retire stale     │                 ║</span>
+<span class="Y">║          │  Enrich alerts → Priority triage      │                 ║</span>
+<span class="Y">║          └─────────────────────────────────────┘                 ║</span>
+<span class="C">║                           ↓                                      ║</span>
+<span class="C">║         OUTPUTS:  Enriched SIEM Alerts │ Updated Blocklists       ║</span>
+<span class="C">║                   Sigma/YARA Rules     │ Threat Reports           ║</span>
+<span class="C">║                   TTP-based Hunts      │ Executive Briefings      ║</span>
+<span class="C">╚══════════════════════════════════════════════════════════════════╝</span></div>
+  </div>
+
+  <!-- Finished intel product -->
+  <div class="card" style="margin-bottom:18px">
+    <div class="clabel">Finished Intelligence Product</div>
+    <div class="ctitle">WRITING THE THREAT INTELLIGENCE REPORT</div>
+    <div class="cbody" style="margin-bottom:12px">A finished intel product is actionable, confident, and sourced. These are the structural elements of a well-crafted CTI report.</div>
+    <div class="g2">
+      <div class="cb">
+<span class="C">╔══════════════════════════════════════════╗</span>
+<span class="C">║  CTI REPORT STRUCTURE                    ║</span>
+<span class="C">╠══════════════════════════════════════════╣</span>
+<span class="Y">HEADER</span>
+  Title, Date, Author, TLP, Confidence (H/M/L)
+  Report ID, Version
+
+<span class="Y">EXECUTIVE SUMMARY</span>  (2-3 sentences, non-technical)
+  Who attacked what, what impact, what to do
+
+<span class="Y">KEY JUDGMENTS</span>  (bulleted, bold assertions)
+  "We assess with HIGH confidence that..."
+  "We assess with MODERATE confidence that..."
+  Separate FACT from ASSESSMENT from SPECULATION
+
+<span class="Y">THREAT ACTOR OVERVIEW</span>
+  Attribution, motivation, capability assessment
+
+<span class="Y">CAMPAIGN ANALYSIS</span>
+  Timeline, targets, observed TTPs, kill chain
+
+<span class="Y">TECHNICAL INDICATORS</span>  (tabular)
+  All IOCs with type, value, confidence, expiry
+  STIX bundle link
+
+<span class="Y">ATT&CK MAPPING</span>
+  Technique table with evidence citations
+
+<span class="Y">DEFENSIVE RECOMMENDATIONS</span>
+  Prioritized by urgency and coverage gap
+
+<span class="Y">APPENDICES</span>
+  Raw indicators, YARA rules, Sigma rules,
+  Network traffic signatures</div>
+      <div class="cb">
+<span class="C"># Analytic Confidence Language</span>
+<span class="C"># (Based on IC Directive 203)</span>
+
+<span class="G">HIGH CONFIDENCE</span>
+  "We assess with high confidence..."
+  Evidence: multiple independent sources,
+  corroborating technical indicators,
+  government attribution
+  Use when: strong evidentiary basis
+
+<span class="Y">MODERATE CONFIDENCE</span>
+  "We assess with moderate confidence..."
+  Evidence: single reliable source,
+  technical indicators without full context,
+  vendor reporting
+  Use when: good evidence, some gaps
+
+<span class="N">LOW CONFIDENCE</span>
+  "We assess with low confidence..."
+  Evidence: unverified, single source,
+  highly circumstantial
+  Use when: early-stage intelligence,
+  plausible but unconfirmed
+
+<span class="C"># NEVER use confidence hedges ambiguously:</span>
+<span class="R">BAD:  "It may be possible that..."</span>
+<span class="R">BAD:  "We think perhaps..."</span>
+<span class="G">GOOD: "We assess with low confidence that X"</span>
+<span class="G">GOOD: "The evidence suggests Y (MODERATE)"</span>
+
+<span class="C"># Always separate:</span>
+<span class="C"># FACT: "The malware connects to 185.x.x.x"</span>
+<span class="C"># JUDGMENT: "We assess this infrastructure</span>
+<span class="C">#  is operated by APT-X (HIGH confidence)"</span></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ ASSESSMENT ═══════════════ -->
+<div class="module z1" id="mod-quiz">
+<div class="wrapper">
+
+  <div class="sh">
+    <div class="sh-num">∞</div>
+    <div class="sh-body">
+      <div class="sh-eyebrow">// Module 09 Assessment //</div>
+      <div class="sh-title">Threat Intelligence <span class="hl">Examination</span></div>
+      <div class="sh-desc">Ten questions covering the intelligence lifecycle, STIX/TAXII, TTP-based detection, actor profiling, analytic confidence, and operational fusion. Select the best answer — explanations follow each choice.</div>
+    </div>
+  </div>
+
+  <div id="quiz-container"></div>
+
+  <div class="score-panel">
+    <div class="score-big" id="score-big">—</div>
+    <div class="score-sub" id="score-sub">Complete the assessment to receive your score</div>
+    <div class="score-bar"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+    <button class="reset-btn" onclick="resetQuiz()">Retake Assessment</button>
+  </div>
+
+</div>
+</div>
+
+<div class="classbar z1" style="position:fixed;bottom:0;left:0;right:0;z-index:999;opacity:.7">END OF DOCUMENT — THREATINT-2025-09-ALPHA — TLP:GREEN</div>
+
+<script>
+function sw(id,btn){
+  document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('mod-'+id).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function iTab(id,btn){
+  const mod=btn.closest('.module');
+  mod.querySelectorAll('.itab').forEach(t=>t.classList.remove('active'));
+  mod.querySelectorAll('.ipanel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ip-'+id).classList.add('active');
+}
+
+const Qs=[
+  {
+    q:"You receive a threat intelligence feed with 50,000 IP address indicators added over the past year. No expiry dates are set. What is the primary risk of using this feed without modification?",
+    opts:[
+      "The feed is too large for SIEM ingestion — split it into multiple feeds",
+      "IP addresses have a typical lifespan of days to a week. A year-old IP feed will contain massive numbers of now-benign IPs (reassigned to legitimate services, cloud providers, ISPs), generating catastrophic false positive rates that train analysts to ignore alerts — a phenomenon called 'alert fatigue by stale intel'",
+      "IP indicators are perfectly stable — unlike domains, IPs don't reassign frequently",
+      "The risk is false negatives — attackers will have rotated away from these IPs"
+    ],
+    correct:1,
+    explain:"<strong>IOC decay is the central challenge of threat intelligence operationalization.</strong> IP addresses are among the least stable indicators — shared hosting, CDN IPs, VPN exit nodes, and cloud provider ranges all reassign constantly. A year-old IP block-list will flag Amazon CloudFront, legitimate VPNs, and countless benign services. The result: analysts see thousands of false positives, lose trust in the detection, and disable or ignore it — worse than not having the detection. Solution: implement IOC scoring with decay rates (half-life ~7 days for IPs), require minimum confidence scores for SIEM ingestion, and enforce expiry dates on all network-layer indicators."
+  },
+  {
+    q:"A STIX 2.1 Indicator object requires a 'pattern' field. Which pattern correctly detects when a process makes a network connection to a specific C2 IP on port 443?",
+    opts:[
+      "[ip:value = '185.220.101.34' AND port:value = 443]",
+      "[network-traffic:dst_ref.type = 'ipv4-addr' AND network-traffic:dst_ref.value = '185.220.101.34' AND network-traffic:dst_port = 443]",
+      "[process:network_connections[*] = '185.220.101.34:443']",
+      "[connection:destination = '185.220.101.34' AND connection:port = '443']"
+    ],
+    correct:1,
+    explain:"<strong>STIX patterns use the STIX Cyber-Observable (SCO) object model.</strong> The correct pattern references <code>network-traffic</code> SCO with its structured fields: <code>dst_ref</code> (a reference to an ipv4-addr object) and <code>dst_port</code> (integer). The pattern dot-notation <code>dst_ref.type</code> and <code>dst_ref.value</code> are how STIX patterns dereference object references. Option A uses non-existent SCO types. Option C uses a non-existent process field. Option D uses a fictional 'connection' type. STIX patterns are strict — they must reference valid SCO types and fields defined in the STIX 2.1 specification. The Python <code>stix2</code> library will validate patterns before serialization."
+  },
+  {
+    q:"The Diamond Model reveals that two separate intrusion events — six months apart, targeting different victims — share the same C2 IP infrastructure. What analytical conclusion is warranted and what caveat applies?",
+    opts:[
+      "Definitive conclusion: same threat actor operated both campaigns. No caveats needed.",
+      "With moderate confidence: the shared infrastructure suggests operational overlap, possibly the same actor or affiliated actors. Caveat: infrastructure sharing may indicate use of common criminal bulletproof hosting services, not necessarily the same operator — require additional corroborating evidence (same malware family, same TTP patterns, same targeting profile) before asserting attribution",
+      "The shared IP is a false positive — IPv4 addresses frequently reassign, so this is coincidental",
+      "Both events should be treated as entirely separate — infrastructure overlap has no analytical value"
+    ],
+    correct:1,
+    explain:"<strong>Infrastructure pivoting is powerful but requires corroboration for attribution.</strong> The Diamond Model's infrastructure vertex is a linking mechanism — shared infrastructure suggests a connection, but the strength of that connection varies. Bulletproof hosting providers (Novogara, Flyservers, Serverius) host hundreds of threat actors simultaneously — their IPs appear in many unrelated campaigns. Strong attribution requires convergence across multiple Diamond vertices: same infrastructure AND same malware family (capability) AND same targeting sector (victim) AND same TTPs (adversary behavior). Single-vertex overlap warrants 'moderate confidence — possible same actor' language, not 'definitive attribution.' This is why analytic confidence levels are mandatory in CTI reporting."
+  },
+  {
+    q:"Your ATT&CK coverage analysis shows you have detections for 45% of APT29's known techniques. Your CISO asks: 'Does 45% mean we catch 45% of APT29 attacks?' What is the correct answer?",
+    opts:[
+      "Yes — technique coverage directly equals detection probability",
+      "Not necessarily. ATT&CK technique frequency varies — some techniques appear in every campaign (high-frequency), others rarely. Coverage of high-frequency techniques (like T1059.001 PowerShell, T1566.001 Spearphishing) may catch 80%+ of campaigns even at 45% technique coverage. Conversely, covering 45% of obscure techniques misses all common attack paths. Priority: cover the techniques APT29 uses in EVERY campaign before covering rare techniques.",
+      "45% coverage means you miss 55% — immediately build rules for all remaining techniques",
+      "ATT&CK coverage is irrelevant — attackers adapt TTPs specifically to evade known detections"
+    ],
+    correct:1,
+    explain:"<strong>Technique frequency and campaign criticality matter more than raw coverage percentage.</strong> APT29's SolarWinds attack used T1195.002 (Supply Chain Compromise) — a technique few orgs had detections for. If you covered T1195.002, you catch that entire campaign regardless of your overall coverage percentage. ATT&CK coverage analysis should be weighted: (1) Map techniques by frequency in actor's documented campaigns. (2) Prioritize 'must-cover' techniques that appear in 70%+ of the actor's operations. (3) Secondary: cover techniques with highest impact (data exfiltration, ransomware deployment). (4) Tertiary: cover rare techniques. A 30% coverage rate focused on high-frequency techniques outperforms 70% coverage of low-frequency techniques."
+  },
+  {
+    q:"An intelligence report states: 'APT-X may have possibly been involved in this intrusion.' As a CTI analyst reviewing this for publication, what is wrong with this phrasing and how do you fix it?",
+    opts:[
+      "Nothing is wrong — hedged language is appropriate for uncertain attribution",
+      "Double hedging ('may have possibly') violates analytic standards and conveys no meaningful confidence level. Fix: replace with a structured confidence assertion: 'We assess with low confidence that APT-X was involved, based on overlapping infrastructure (single source, unverified)' — or 'We assess with moderate confidence...' if evidence is stronger. Never stack hedges; always state the assessment followed by the explicit confidence level and evidence basis.",
+      "The word 'possibly' should be removed — use 'may have been involved'",
+      "Replace with 'APT-X was involved' — confidence hedges weaken CTI reports"
+    ],
+    correct:1,
+    explain:"<strong>Analytic standards require explicit confidence levels, not stacked hedges.</strong> Intelligence Community Directive 203 and ODNI analytic standards prohibit ambiguous hedging precisely because phrases like 'may have possibly' convey different meaning to different readers — some interpret it as 'probably,' others as 'unlikely.' The fix: state the assessment directly, then assign a confidence level (High/Moderate/Low) with explicit rationale. 'We assess with LOW confidence that APT-X conducted this intrusion. The assessment is based on [single uncorroborated source] identifying matching C2 infrastructure. Additional corroboration required before increasing confidence.' This format allows consumers to make their own judgment about the evidence quality and calibrate their response accordingly."
+  },
+  {
+    q:"TLP:AMBER+STRICT is applied to an intelligence report. A recipient shares it with a trusted partner organization in the same ISAC. Is this permitted?",
+    opts:[
+      "Yes — ISAC membership implies mutual trust and permits AMBER sharing",
+      "No. TLP:AMBER+STRICT, introduced in TLP version 2.0, restricts sharing to the named recipient organization only — not their partners, subsidiaries, or sector peers. Standard TLP:AMBER permits sharing within the recipient organization and with named partner organizations. AMBER+STRICT explicitly removes that partner-sharing permission. The recipient must not forward the report at all without explicit permission from the originator.",
+      "Yes — TLP only restricts public publication, not trusted partner sharing",
+      "It depends on the ISAC's governing agreement, which supersedes TLP"
+    ],
+    correct:1,
+    explain:"<strong>TLP:AMBER+STRICT prohibits all external sharing without originator consent.</strong> TLP 2.0 (released 2022) added AMBER+STRICT specifically to address cases where sensitive intelligence — containing victim identifiers, PII, or highly sensitive attribution — needs to reach a named recipient but must not propagate further. Use cases: sharing victim notification with the affected organization (can't share with their ISAC peers), sharing a sensitive analytical product with a named government partner, or sharing intelligence that would damage source relationships if more widely distributed. ISACs may have data sharing agreements, but TLP markings from originators take precedence — an ISAC agreement cannot override a TLP:AMBER+STRICT marking applied by an external contributor."
+  },
+  {
+    q:"You are building an IOC pipeline that ingests TAXII feeds. A domain IOC from a feed has confidence=95, but the domain is 'google-analytics-cdn.com' — a look-alike domain registered 3 days ago. The SIEM would block it. What do you do before deploying this block?",
+    opts:[
+      "Trust the confidence score — 95% means the feed provider has validated it",
+      "Verify independently before deploying: (1) Check passive DNS — is it resolving? To what IP? (2) Check VirusTotal — community detection ratio. (3) Check WHOIS — registration date confirms 3 days. (4) Check if the domain has been used in actual campaigns (search your SIEM history). (5) If confirmed malicious, deploy as a monitor/alert first (not block) for 24 hours to assess FP rate. Deploying a block without verification risks disrupting legitimate Google Analytics traffic if any legitimate services use this domain or if it's a sinkholed domain.",
+      "The confidence score is authoritative — deploy immediately, review false positives later",
+      "Reject the IOC entirely — look-alike domains are always false positives in enterprise feeds"
+    ],
+    correct:1,
+    explain:"<strong>Confidence scores reflect the source's assessment, not ground truth — always verify before blocking.</strong> Automated feeds can have high confidence for reasons you don't fully understand: the domain may have been seen in malware samples (high confidence in malware context) but not yet deployed in live attacks. Verification workflow: (1) Passive DNS (SecurityTrails, RiskIQ) — is the domain active and resolving? (2) VirusTotal — how many engines flag it? Community context? (3) Context check — does any legitimate service in your org use this domain? (4) Consider deploying as 'alert' rather than 'block' initially — monitor for FPs before committing to active blocking. The 'monitor first, block after validation' approach prevents embarrassing outages while maintaining security posture."
+  },
+  {
+    q:"An analyst is writing a STIX bundle for a new campaign. They create a threat-actor object and a malware object and want to express that the actor uses this malware. What STIX object type connects them?",
+    opts:[
+      "A STIX Domain Object (SDO) of type 'association'",
+      "A STIX Relationship Object (SRO) with relationship_type='uses', source_ref pointing to the threat-actor, and target_ref pointing to the malware",
+      "Embed the malware ID directly in the threat-actor object's 'tools' field",
+      "A STIX Sighting Object (SSO) linking the two objects"
+    ],
+    correct:1,
+    explain:"<strong>STIX Relationship Objects (SROs) connect all SDOs.</strong> STIX 2.1 uses a graph model: SDOs are nodes, SROs are edges. The relationship SRO has: <code>type: 'relationship'</code>, <code>relationship_type</code> (the edge label — 'uses', 'indicates', 'attributed-to', 'targets', 'mitigates'), <code>source_ref</code>, and <code>target_ref</code>. Common SRO patterns: threat-actor USES malware, indicator INDICATES malware, campaign TARGETS identity, malware USES attack-pattern, course-of-action MITIGATES attack-pattern. Sighting Objects are different — they record that an indicator was 'sighted' in observed data (who saw it, when, how many times). Sightings are used for enriching indicators with observation count, not for linking actor to malware."
+  },
+  {
+    q:"Your organization's threat intel team has produced IOC feeds for two years. A new SOC manager wants to share all IOCs with an ISAC immediately. What process controls must you apply before bulk-sharing?",
+    opts:[
+      "Share everything — ISACs have confidentiality agreements that cover all shared data",
+      "Before sharing: (1) Review every IOC for victim-identifying information — sanitize or remove indicators that could expose victim identities. (2) Apply appropriate TLP markings — not all IOCs are shareable at GREEN. (3) Verify expiry/confidence — don't share stale or low-confidence IOCs that increase noise. (4) Check for indicators derived from sensitive sources (law enforcement, government) that may have sharing restrictions. (5) Confirm your legal authority to share — check incident response contracts and data handling agreements.",
+      "ISACs are fully trusted — no review needed before sharing with sector partners",
+      "Share only hashes — all other IOC types have privacy implications"
+    ],
+    correct:1,
+    explain:"<strong>Responsible sharing requires review before publication — even with trusted partners.</strong> Key pre-sharing considerations: (1) Victim privacy: indicators collected during incident response may expose client identity. IR contracts typically restrict client data sharing without consent. (2) Source sensitivity: IOCs from law enforcement liaison, government sharing programs (like DHS CISA), or commercial intel subscriptions may have redistribution restrictions in their terms. (3) Quality control: sharing stale or low-confidence IOCs damages your organization's reputation as a reliable intel source and adds noise to partners' feeds. (4) Legal: GDPR and similar regulations may restrict sharing IP addresses and other potentially personal data across jurisdictions. (5) Competitive sensitivity: some IOCs may reveal your organization's defensive capabilities or detection methods if shared too broadly."
+  },
+  {
+    q:"You're building an F3EAD cycle for your organization. After an intrusion, you want to extract maximum intelligence value (EXPLOIT phase). What does this specifically entail?",
+    opts:[
+      "Exploiting the vulnerability the attacker used to prevent future breaches",
+      "The EXPLOIT phase means extracting maximum intelligence from the intrusion encounter itself: (1) Reverse engineer all discovered malware — extract C2 configs, encryption keys, beacon intervals. (2) Map all infrastructure discovered — pivot from known C2 IPs to related infrastructure. (3) Conduct threat actor profiling — which known group does this match? (4) Extract all IOCs with full context. (5) Document all observed TTPs with evidence. (6) Produce a finished intel product (ANALYZE) from this extraction. The goal is to gain more intelligence value from the incident than the attacker gained from the intrusion.",
+      "Using the attacker's access to conduct offensive counter-intelligence against their infrastructure",
+      "Documenting the financial loss from the intrusion for insurance and legal purposes"
+    ],
+    correct:1,
+    explain:"<strong>EXPLOIT in F3EAD means extracting intelligence value from the encounter — not vulnerability exploitation.</strong> The military origin: after locating (FIND) and confirming (FIX) an adversary, forces act (FINISH) and then exploit the site (EXPLOIT) — gathering documents, devices, intelligence. In CTI: the 'site' is the intrusion itself — the malware, the logs, the attacker's behavior. Maximum EXPLOIT means: thorough malware RE (extract C2 config, encryption keys, build timestamp, PDB paths, compile artifacts), infrastructure mapping (pivot from C2 IP → all domains → all related IPs → actor's full infrastructure), behavioral analysis (every command in shell history, every file accessed), and systematic TTP documentation. A well-exploited intrusion produces enough intelligence to detect the same actor's next five campaigns before they execute."
+  }
+];
+
+let answered=new Array(Qs.length).fill(false);
+let score=0;
+const topics=['IOC Decay Rates','STIX Pattern Syntax','Diamond Model','ATT&CK Coverage','Analytic Language','TLP Restrictions','IOC Verification','STIX Relationships','Intel Sharing','F3EAD Cycle'];
+
+function buildQuiz(){
+  const c=document.getElementById('quiz-container');
+  c.innerHTML='';
+  Qs.forEach((q,qi)=>{
+    const d=document.createElement('div');
+    d.className='qcard';
+    d.innerHTML=`
+      <div class="qnum">Question ${String(qi+1).padStart(2,'0')} of ${Qs.length} &mdash; ${topics[qi]}</div>
+      <div class="qtext">${q.q}</div>
+      <div class="qopts">${q.opts.map((o,oi)=>`<button class="qopt" onclick="ans(${qi},${oi},this)">${String.fromCharCode(65+oi)}. ${o}</button>`).join('')}</div>
+      <div class="qexplain" id="exp-${qi}">${q.explain}</div>
+    `;
+    c.appendChild(d);
+  });
+  updateScore();
+}
+function ans(qi,oi,btn){
+  if(answered[qi])return;
+  answered[qi]=true;
+  btn.closest('.qopts').querySelectorAll('.qopt').forEach(b=>b.classList.add('locked'));
+  if(oi===Qs[qi].correct){btn.classList.add('correct');score++;}
+  else{btn.classList.add('wrong');btn.closest('.qopts').querySelectorAll('.qopt')[Qs[qi].correct].classList.add('correct');}
+  document.getElementById('exp-'+qi).classList.add('show');
+  updateScore();
+}
+function updateScore(){
+  const done=answered.filter(Boolean).length;
+  const big=document.getElementById('score-big');
+  const sub=document.getElementById('score-sub');
+  const fill=document.getElementById('score-fill');
+  if(done===0){big.textContent='—';sub.textContent='Complete the assessment to receive your score';return;}
+  const pct=Math.round(score/done*100);
+  big.textContent=`${score} / ${done}`;
+  const rem=Qs.length-done;
+  sub.textContent=rem>0?`${pct}% correct — ${rem} question${rem!==1?'s':''} remaining`:pct>=80?`${pct}% — Intelligence Analyst Qualified`:pct>=60?`${pct}% — Review Recommended`:`${pct}% — Repeat Module`;
+  fill.style.width=pct+'%';
+  fill.style.background=pct>=80?'#0e1e3a':pct>=60?'#8a6b20':'#6b1423';
+}
+function resetQuiz(){answered=new Array(Qs.length).fill(false);score=0;buildQuiz();}
+buildQuiz();
+</script>
+</body>
+</html>
