@@ -13,8 +13,9 @@ import {
   Search,
   Shield,
   Terminal,
+  Zap,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 const MalwareCurriculum = lazy(() => import("./pages/MalwareCurriculum.jsx"));
 const ScriptingInteractive = lazy(() => import("./pages/ScriptingInteractive.jsx"));
@@ -37,27 +38,49 @@ const CloudSecurity = lazy(() => import("./pages/CloudSecurity.jsx"));
 const ThreatIntelligence = lazy(() => import("./pages/ThreatIntelligence.jsx"));
 const LlmSecurity = lazy(() => import("./pages/LlmSecurity.jsx"));
 
+/* ─── Organized lesson data with categories and descriptions ─── */
+
 const LESSONS = [
-  { id: "curriculum", label: "Full Curriculum", icon: Home, Component: MalwareCurriculum },
-  { id: "interactive-scripting", label: "Interactive Scripting", icon: Terminal, Component: ScriptingInteractive },
-  { id: "interactive-fundamentals", label: "Interactive Fundamentals", icon: Bug, Component: MalwareFundamentalsInteractive },
-  { id: "interactive-analysis", label: "Interactive Analysis", icon: Radar, Component: MalwareAnalysisInteractive },
-  { id: "interactive-detection", label: "Interactive Detection", icon: Shield, Component: DetectionDefenseInteractive },
-  { id: "scripting", label: "Scripting Fundamentals", icon: Terminal, Component: SecurityScriptingFundamentals },
-  { id: "fundamentals", label: "Malware Fundamentals", icon: Bug, Component: MalwareFundamentals },
-  { id: "analysis", label: "Analysis and RE", icon: BookOpen, Component: MalwareAnalysisReverseEngineering },
-  { id: "detection", label: "Detection Defense", icon: Shield, Component: DetectionEngineeringDefense },
-  { id: "advanced-re", label: "Advanced RE", icon: Search, Component: AdvancedReverseEngineering },
-  { id: "network-forensics", label: "Network Forensics", icon: Network, Component: NetworkForensics },
-  { id: "cloud-security", label: "Cloud Security", icon: Cloud, Component: CloudSecurity },
-  { id: "threat-intelligence", label: "Threat Intelligence", icon: Radar, Component: ThreatIntelligence },
-  { id: "llm-security", label: "LLM Security", icon: Bot, Component: LlmSecurity },
-  { id: "labs", label: "Labs and Ethics", icon: FlaskConical, Component: LabsEthicsPractice },
-  { id: "lab-setup", label: "Lab Setup Continuation", icon: FlaskConical, Component: LabSetupContinuation },
-  { id: "scripting-mastery-plan", label: "Scripting Mastery Plan", icon: Terminal, Component: ScriptingMasteryPlan },
-  { id: "security-scripting-90day", label: "90 Day Scripting", icon: CalendarDays, Component: SecurityScripting90Day },
-  { id: "month2-daily-detail", label: "Month 2 Daily Detail", icon: CalendarDays, Component: Month2DailyDetail },
-  { id: "month3-daily-detail", label: "Month 3 Daily Detail", icon: CalendarDays, Component: Month3DailyDetail },
+  // Overview
+  { id: "curriculum", label: "Full Curriculum", desc: "Complete overview & roadmap", icon: Home, category: "overview", Component: MalwareCurriculum },
+
+  // Interactive Labs
+  { id: "interactive-scripting", label: "Interactive Scripting", desc: "Hands-on Bash, Python, PowerShell", icon: Terminal, category: "interactive", Component: ScriptingInteractive },
+  { id: "interactive-fundamentals", label: "Interactive Fundamentals", desc: "Malware internals with labs", icon: Bug, category: "interactive", Component: MalwareFundamentalsInteractive },
+  { id: "interactive-analysis", label: "Interactive Analysis", desc: "RE techniques & tools", icon: Radar, category: "interactive", Component: MalwareAnalysisInteractive },
+  { id: "interactive-detection", label: "Interactive Detection", desc: "YARA, Sigma, Snort rules", icon: Shield, category: "interactive", Component: DetectionDefenseInteractive },
+
+  // Core Modules
+  { id: "scripting", label: "Scripting Fundamentals", desc: "Security scripting foundations", icon: Terminal, category: "core", Component: SecurityScriptingFundamentals },
+  { id: "fundamentals", label: "Malware Fundamentals", desc: "Types, behaviors, analysis", icon: Bug, category: "core", Component: MalwareFundamentals },
+  { id: "analysis", label: "Analysis and RE", desc: "Static & dynamic analysis", icon: BookOpen, category: "core", Component: MalwareAnalysisReverseEngineering },
+  { id: "detection", label: "Detection Defense", desc: "Detection engineering patterns", icon: Shield, category: "core", Component: DetectionEngineeringDefense },
+
+  // Advanced Topics
+  { id: "advanced-re", label: "Advanced RE", desc: "Anti-analysis, packers, obfuscation", icon: Search, category: "advanced", Component: AdvancedReverseEngineering },
+  { id: "network-forensics", label: "Network Forensics", desc: "PCAP, Wireshark, traffic analysis", icon: Network, category: "advanced", Component: NetworkForensics },
+  { id: "cloud-security", label: "Cloud Security", desc: "AWS, Azure, GCP defense", icon: Cloud, category: "advanced", Component: CloudSecurity },
+  { id: "threat-intelligence", label: "Threat Intelligence", desc: "MITRE ATT&CK, IOCs, TTP mapping", icon: Radar, category: "advanced", Component: ThreatIntelligence },
+  { id: "llm-security", label: "LLM Security", desc: "AI/ML attack & defense", icon: Bot, category: "advanced", Component: LlmSecurity },
+
+  // Labs & Practice
+  { id: "labs", label: "Labs and Ethics", desc: "Safe lab setup & ethical guidelines", icon: FlaskConical, category: "labs", Component: LabsEthicsPractice },
+  { id: "lab-setup", label: "Lab Setup Continuation", desc: "Advanced lab environments", icon: FlaskConical, category: "labs", Component: LabSetupContinuation },
+
+  // Learning Plans
+  { id: "scripting-mastery-plan", label: "Scripting Mastery Plan", desc: "90-day structured learning path", icon: Terminal, category: "plans", Component: ScriptingMasteryPlan },
+  { id: "security-scripting-90day", label: "90 Day Scripting", desc: "Daily exercises & projects", icon: CalendarDays, category: "plans", Component: SecurityScripting90Day },
+  { id: "month2-daily-detail", label: "Month 2 Daily Detail", desc: "Security automation focus", icon: CalendarDays, category: "plans", Component: Month2DailyDetail },
+  { id: "month3-daily-detail", label: "Month 3 Daily Detail", desc: "Advanced tooling & capstone", icon: CalendarDays, category: "plans", Component: Month3DailyDetail },
+];
+
+const CATEGORIES = [
+  { key: "overview", label: null },
+  { key: "interactive", label: "Interactive Labs" },
+  { key: "core", label: "Core Modules" },
+  { key: "advanced", label: "Advanced Topics" },
+  { key: "labs", label: "Labs & Practice" },
+  { key: "plans", label: "Learning Plans" },
 ];
 
 export default function App() {
@@ -78,7 +101,7 @@ export default function App() {
       if (contentRef.current) contentRef.current.scrollTop = 0;
       window.scrollTo({ top: 0 });
       setTimeout(() => setTransitioning(false), 50);
-    }, 250);
+    }, 280);
   }, [activeIndex, transitioning]);
 
   const goNext = useCallback(() => {
@@ -99,6 +122,45 @@ export default function App() {
     return () => window.removeEventListener("keydown", handler);
   }, [goNext, goPrev]);
 
+  // Build sidebar items grouped by category
+  const renderSidebar = () => {
+    const items = [];
+    let lastCategory = null;
+
+    LESSONS.forEach((lesson, i) => {
+      const cat = CATEGORIES.find(c => c.key === lesson.category);
+      if (cat && cat.key !== lastCategory && cat.label) {
+        items.push(
+          <div key={`cat-${cat.key}`} className="sidebar-section">{cat.label}</div>
+        );
+        lastCategory = cat.key;
+      }
+
+      const isActive = i === activeIndex;
+      const isCompleted = i < activeIndex;
+      const Icon = lesson.icon;
+
+      items.push(
+        <button
+          className={`nav-item ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""}`}
+          key={lesson.id}
+          onClick={() => navigateTo(i)}
+          type="button"
+        >
+          <Icon size={16} aria-hidden="true" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span>{lesson.label}</span>
+            {lesson.desc && <span className="nav-item-desc">{lesson.desc}</span>}
+          </div>
+          {isCompleted && <span className="nav-check">✓</span>}
+          {isActive && <span className="nav-active-dot" />}
+        </button>
+      );
+    });
+
+    return items;
+  };
+
   return (
     <div className="app">
       {/* ─── Sidebar ─── */}
@@ -111,7 +173,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Progress in sidebar */}
+        {/* Progress */}
         <div className="sidebar-progress">
           <div className="sidebar-progress-header">
             <span className="sidebar-progress-label">Progress</span>
@@ -123,29 +185,13 @@ export default function App() {
         </div>
 
         <nav className="nav-list" aria-label="Lesson navigation">
-          {LESSONS.map(({ id, label, icon: Icon }, i) => {
-            const isActive = i === activeIndex;
-            const isCompleted = i < activeIndex;
-            return (
-              <button
-                className={`nav-item ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""}`}
-                key={id}
-                onClick={() => navigateTo(i)}
-                type="button"
-              >
-                <Icon size={17} aria-hidden="true" />
-                <span>{label}</span>
-                {isCompleted && <span className="nav-check">✓</span>}
-                {isActive && <span className="nav-active-dot" />}
-              </button>
-            );
-          })}
+          {renderSidebar()}
         </nav>
       </aside>
 
       {/* ─── Main Content ─── */}
       <main className="workspace">
-        {/* Top bar with nav controls */}
+        {/* Top bar */}
         <header className="topbar">
           <div className="topbar-left">
             <button
@@ -161,39 +207,50 @@ export default function App() {
               <h2>{activeLesson.label}</h2>
             </div>
           </div>
-          <div className="topbar-nav">
-            <button
-              className="topbar-nav-btn"
-              onClick={goPrev}
-              disabled={activeIndex === 0}
-              title="Previous module (Alt+←)"
-              type="button"
-            >
-              <ChevronLeft size={16} />
-              <span>Prev</span>
-            </button>
-            <button
-              className="topbar-nav-btn"
-              onClick={goNext}
-              disabled={activeIndex === LESSONS.length - 1}
-              title="Next module (Alt+→)"
-              type="button"
-            >
-              <span>Next</span>
-              <ChevronRight size={16} />
-            </button>
+          <div className="topbar-info">
+            <span className="topbar-badge">
+              <Zap size={11} />
+              {activeLesson.category.toUpperCase()}
+            </span>
+            <div className="topbar-nav">
+              <button
+                className="topbar-nav-btn"
+                onClick={goPrev}
+                disabled={activeIndex === 0}
+                title="Previous module (Alt+←)"
+                type="button"
+              >
+                <ChevronLeft size={15} />
+                <span>Prev</span>
+              </button>
+              <button
+                className="topbar-nav-btn"
+                onClick={goNext}
+                disabled={activeIndex === LESSONS.length - 1}
+                title="Next module (Alt+→)"
+                type="button"
+              >
+                <span>Next</span>
+                <ChevronRight size={15} />
+              </button>
+            </div>
           </div>
         </header>
 
-        {/* Progress bar under topbar */}
+        {/* Progress bar */}
         <div className="content-progress-track">
           <div className="content-progress-fill" style={{ width: `${progress}%` }} />
         </div>
 
-        {/* Page content with transition */}
+        {/* Page content */}
         <section className="lesson-surface" ref={contentRef}>
           <div className={`lesson-content ${transitioning ? "lesson-exit" : "lesson-enter"}`}>
-            <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /><span>Loading module...</span></div>}>
+            <Suspense fallback={
+              <div className="page-loading">
+                <div className="loading-spinner" />
+                <span>Loading module...</span>
+              </div>
+            }>
               <ActivePage />
             </Suspense>
           </div>
