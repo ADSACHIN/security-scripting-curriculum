@@ -3,6 +3,8 @@ import {
   Bot,
   Bug,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Cloud,
   FlaskConical,
   Home,
@@ -12,7 +14,7 @@ import {
   Shield,
   Terminal,
 } from "lucide-react";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const MalwareCurriculum = lazy(() => import("./pages/MalwareCurriculum.jsx"));
 const ScriptingInteractive = lazy(() => import("./pages/ScriptingInteractive.jsx"));
@@ -59,50 +61,169 @@ const LESSONS = [
 ];
 
 export default function App() {
-  const [activeId, setActiveId] = useState(LESSONS[0].id);
-  const activeLesson = useMemo(
-    () => LESSONS.find((lesson) => lesson.id === activeId) ?? LESSONS[0],
-    [activeId]
-  );
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [transitioning, setTransitioning] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const contentRef = useRef(null);
+
+  const activeLesson = LESSONS[activeIndex];
   const ActivePage = activeLesson.Component;
+  const progress = ((activeIndex + 1) / LESSONS.length) * 100;
+
+  const navigateTo = useCallback((index) => {
+    if (index === activeIndex || transitioning) return;
+    setTransitioning(true);
+    setTimeout(() => {
+      setActiveIndex(index);
+      if (contentRef.current) contentRef.current.scrollTop = 0;
+      window.scrollTo({ top: 0 });
+      setTimeout(() => setTransitioning(false), 50);
+    }, 250);
+  }, [activeIndex, transitioning]);
+
+  const goNext = useCallback(() => {
+    if (activeIndex < LESSONS.length - 1) navigateTo(activeIndex + 1);
+  }, [activeIndex, navigateTo]);
+
+  const goPrev = useCallback(() => {
+    if (activeIndex > 0) navigateTo(activeIndex - 1);
+  }, [activeIndex, navigateTo]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.altKey && e.key === "ArrowRight") { e.preventDefault(); goNext(); }
+      if (e.altKey && e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [goNext, goPrev]);
 
   return (
     <div className="app">
-      <aside className="sidebar">
+      {/* ─── Sidebar ─── */}
+      <aside className={`sidebar ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
         <div className="brand">
           <span className="brand-mark">SEC</span>
           <div>
             <h1>Security Curriculum</h1>
-            <p>React Project</p>
+            <p>Cybersecurity Mastery</p>
+          </div>
+        </div>
+
+        {/* Progress in sidebar */}
+        <div className="sidebar-progress">
+          <div className="sidebar-progress-header">
+            <span className="sidebar-progress-label">Progress</span>
+            <span className="sidebar-progress-value">{activeIndex + 1}/{LESSONS.length}</span>
+          </div>
+          <div className="sidebar-progress-track">
+            <div className="sidebar-progress-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
         <nav className="nav-list" aria-label="Lesson navigation">
-          {LESSONS.map(({ id, label, icon: Icon }) => (
-            <button
-              className={id === activeId ? "nav-item active" : "nav-item"}
-              key={id}
-              onClick={() => setActiveId(id)}
-              type="button"
-            >
-              <Icon size={17} aria-hidden="true" />
-              <span>{label}</span>
-            </button>
-          ))}
+          {LESSONS.map(({ id, label, icon: Icon }, i) => {
+            const isActive = i === activeIndex;
+            const isCompleted = i < activeIndex;
+            return (
+              <button
+                className={`nav-item ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""}`}
+                key={id}
+                onClick={() => navigateTo(i)}
+                type="button"
+              >
+                <Icon size={17} aria-hidden="true" />
+                <span>{label}</span>
+                {isCompleted && <span className="nav-check">✓</span>}
+                {isActive && <span className="nav-active-dot" />}
+              </button>
+            );
+          })}
         </nav>
       </aside>
 
+      {/* ─── Main Content ─── */}
       <main className="workspace">
+        {/* Top bar with nav controls */}
         <header className="topbar">
-          <div>
-            <span className="eyebrow">Current Module</span>
-            <h2>{activeLesson.label}</h2>
+          <div className="topbar-left">
+            <button
+              className="sidebar-toggle"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              title="Toggle sidebar"
+              type="button"
+            >
+              ☰
+            </button>
+            <div>
+              <span className="eyebrow">Module {activeIndex + 1} of {LESSONS.length}</span>
+              <h2>{activeLesson.label}</h2>
+            </div>
+          </div>
+          <div className="topbar-nav">
+            <button
+              className="topbar-nav-btn"
+              onClick={goPrev}
+              disabled={activeIndex === 0}
+              title="Previous module (Alt+←)"
+              type="button"
+            >
+              <ChevronLeft size={16} />
+              <span>Prev</span>
+            </button>
+            <button
+              className="topbar-nav-btn"
+              onClick={goNext}
+              disabled={activeIndex === LESSONS.length - 1}
+              title="Next module (Alt+→)"
+              type="button"
+            >
+              <span>Next</span>
+              <ChevronRight size={16} />
+            </button>
           </div>
         </header>
-        <section className="lesson-surface">
-          <Suspense fallback={<div className="page-loading">Loading module...</div>}>
-            <ActivePage />
-          </Suspense>
+
+        {/* Progress bar under topbar */}
+        <div className="content-progress-track">
+          <div className="content-progress-fill" style={{ width: `${progress}%` }} />
+        </div>
+
+        {/* Page content with transition */}
+        <section className="lesson-surface" ref={contentRef}>
+          <div className={`lesson-content ${transitioning ? "lesson-exit" : "lesson-enter"}`}>
+            <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /><span>Loading module...</span></div>}>
+              <ActivePage />
+            </Suspense>
+          </div>
+
+          {/* ─── Bottom Navigation ─── */}
+          <footer className="bottom-nav">
+            {activeIndex > 0 ? (
+              <button className="bottom-nav-btn bottom-nav-prev" onClick={goPrev} type="button">
+                <ChevronLeft size={20} className="bottom-nav-arrow" />
+                <div>
+                  <span className="bottom-nav-label">Previous</span>
+                  <span className="bottom-nav-title">{LESSONS[activeIndex - 1].label}</span>
+                </div>
+              </button>
+            ) : <div className="bottom-nav-spacer" />}
+
+            {activeIndex < LESSONS.length - 1 ? (
+              <button className="bottom-nav-btn bottom-nav-next" onClick={goNext} type="button">
+                <div>
+                  <span className="bottom-nav-label">Next</span>
+                  <span className="bottom-nav-title">{LESSONS[activeIndex + 1].label}</span>
+                </div>
+                <ChevronRight size={20} className="bottom-nav-arrow" />
+              </button>
+            ) : (
+              <div className="bottom-nav-complete">
+                🎉 Curriculum Complete!
+              </div>
+            )}
+          </footer>
         </section>
       </main>
     </div>
